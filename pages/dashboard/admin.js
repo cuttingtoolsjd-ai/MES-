@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabaseClient'
 import Tabs from '../../components/Tabs'
@@ -23,6 +23,7 @@ import PermissionRequestsTable from '../../components/admin/PermissionRequestsTa
 import UserMenu from '../../components/UserMenu'
 import ChangePinModal from '../../components/ChangePinModal'
 import DashboardLayout from '../../components/DashboardLayout'
+import { parseCsv, importWorkOrders, importToolMaster, importStockItems } from '../../lib/csvImport'
 
 export default function AdminDashboard() {
   // ...existing code...
@@ -41,6 +42,11 @@ export default function AdminDashboard() {
   const [planShift, setPlanShift] = useState(SHIFT_OPTIONS[0].value)
   const [tabIdx, setTabIdx] = useState(null) // null = show tiles, number = show tab content
   const [kpis, setKpis] = useState({ employees: 0, workOrders: 0, tools: 0, approvalsPending: 0, stockItems: 0 })
+  // CSV Import state
+  const fileInputRef = useRef(null)
+  const [csvTarget, setCsvTarget] = useState(null) // 'work_orders' | 'tool_master' | 'stock_items'
+  const [csvMessage, setCsvMessage] = useState('')
+  const [csvImporting, setCsvImporting] = useState(false)
 
   const tileDefs = user ? [
     {
@@ -643,6 +649,52 @@ export default function AdminDashboard() {
     }
   }
 
+  // --- CSV IMPORT HANDLERS ---
+  function triggerCsvSelect(target) {
+    setCsvTarget(target)
+    setCsvMessage('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
+  }
+
+  async function handleCsvFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file || !csvTarget) return
+    setCsvImporting(true)
+    setCsvMessage('Parsing CSV...')
+    try {
+      const text = await file.text()
+      const { headers, rows } = parseCsv(text)
+      if (!rows.length) {
+        setCsvMessage('No rows found in CSV.')
+        setCsvImporting(false)
+        return
+      }
+      let inserted = 0
+      if (csvTarget === 'work_orders') {
+        inserted = await importWorkOrders(rows, user)
+        fetchWorkOrders()
+        fetchKpis()
+      } else if (csvTarget === 'tool_master') {
+        inserted = await importToolMaster(rows)
+        fetchToolMaster()
+        fetchKpis()
+      } else if (csvTarget === 'stock_items') {
+        inserted = await importStockItems(rows)
+        // stock_items table used for KPI while stock view still uses tool_master
+        fetchKpis()
+      }
+      setCsvMessage(`✅ Imported ${inserted} rows into ${csvTarget.replace('_', ' ')}`)
+    } catch (err) {
+      setCsvMessage('Error: ' + err.message)
+    } finally {
+      setCsvImporting(false)
+      setCsvTarget(null)
+    }
+  }
+
   function handlePasswordChanged() {
     setShowPasswordChangeModal(false)
     // Update user state to reflect password change
@@ -1104,6 +1156,34 @@ export default function AdminDashboard() {
       )}
       
       <div className="px-2 sm:px-6 lg:px-8 py-6">
+        {/* Hidden file input for CSV */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleCsvFileChange}
+          className="hidden"
+        />
+        {/* CSV Import toolbar */}
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-slate-800 via-indigo-700 to-purple-700 text-white shadow relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.25),transparent_60%)]" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold tracking-wide">Bulk Data Import</h3>
+              <p className="text-xs text-indigo-200">Upload CSV files to quickly create work orders, tool master entries or stock items.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button disabled={csvImporting} onClick={() => triggerCsvSelect('work_orders')} className="px-3 py-2 text-xs font-semibold rounded-md bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50">Work Orders CSV</button>
+              <button disabled={csvImporting} onClick={() => triggerCsvSelect('tool_master')} className="px-3 py-2 text-xs font-semibold rounded-md bg-green-500 hover:bg-green-400 disabled:opacity-50">Tool Master CSV</button>
+              <button disabled={csvImporting} onClick={() => triggerCsvSelect('stock_items')} className="px-3 py-2 text-xs font-semibold rounded-md bg-pink-500 hover:bg-pink-400 disabled:opacity-50">Stock CSV</button>
+            </div>
+          </div>
+          {csvMessage && (
+            <div className={`mt-3 text-xs font-medium px-3 py-2 rounded-md inline-block ${csvMessage.startsWith('✅') ? 'bg-green-500/20 text-green-200 border border-green-400/40' : 'bg-red-500/20 text-red-200 border border-red-400/40'}`}>
+              {csvMessage}
+            </div>
+          )}
+        </div>
         {tabIdx === null ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-10">
             {tileDefs.map((tile, idx) => (
