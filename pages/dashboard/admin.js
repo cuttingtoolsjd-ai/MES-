@@ -22,7 +22,7 @@ import EmployeeForm from '../../components/admin/EmployeeForm'
 import PermissionRequestsTable from '../../components/admin/PermissionRequestsTable'
 import UserMenu from '../../components/UserMenu'
 import ChangePinModal from '../../components/ChangePinModal'
-import Link from 'next/link'
+import DashboardLayout from '../../components/DashboardLayout'
 
 export default function AdminDashboard() {
   // ...existing code...
@@ -1054,7 +1054,35 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <DashboardLayout
+      user={user}
+      title="Admin Control Center"
+      subtitle="Manage people, production, inventory & planning"
+      onLogoClick={() => {
+        try {
+          const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+          const parsed = saved ? JSON.parse(saved) : null;
+          const rawRole = (parsed?.role || user?.role || '').toString();
+          const role = rawRole.trim().toLowerCase();
+          const allowed = ['admin','manager','operator'];
+          if (allowed.includes(role)) {
+            router.push(`/dashboard/${role}`);
+          } else if (role.includes('admin')) {
+            router.push('/dashboard/admin');
+          } else if (role.includes('manager')) {
+            router.push('/dashboard/manager');
+          } else if (role.includes('operator') || role.includes('worker')) {
+            router.push('/dashboard/operator');
+          } else {
+            router.push('/login');
+          }
+        } catch (e) {
+          router.push('/login');
+        }
+      }}
+      rightContent={<UserMenu user={user} onChangePinClick={() => setShowChangePinModal(true)} />}
+      banner={null}
+    >
       {/* Force Password Change Modal */}
       {showPasswordChangeModal && (
         <ForcePasswordChangeModal 
@@ -1075,60 +1103,9 @@ export default function AdminDashboard() {
         />
       )}
       
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-          <div className="flex items-center py-3 sm:py-4">
-            <div className="flex items-center gap-2 sm:gap-3 w-2/5">
-              <button 
-                onClick={() => {
-                  try {
-                    const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
-                    const parsed = saved ? JSON.parse(saved) : null;
-                    const rawRole = (parsed?.role || user?.role || '').toString();
-                    const role = rawRole.trim().toLowerCase();
-                    const allowed = ['admin','manager','operator'];
-                    if (allowed.includes(role)) {
-                      router.push(`/dashboard/${role}`);
-                    } else if (role.includes('admin')) {
-                      router.push('/dashboard/admin');
-                    } else if (role.includes('manager')) {
-                      router.push('/dashboard/manager');
-                    } else if (role.includes('operator') || role.includes('worker')) {
-                      router.push('/dashboard/operator');
-                    } else {
-                      router.push('/login');
-                    }
-                  } catch (e) {
-                    router.push('/login');
-                  }
-                }}
-                className="hover:opacity-80 transition-opacity flex-shrink-0 w-28 h-10 sm:w-40 sm:h-12 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                title="Home"
-              >
-                <img 
-                  src="/logo.png" 
-                  alt="JD Cutting Tools" 
-                  className="w-full h-full object-contain"
-                />
-              </button>
-              <div className="hidden sm:block">
-                <p className="text-sm text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
-                <p className="text-xs text-gray-500">Admin Dashboard</p>
-              </div>
-            </div>
-            <div className="w-3/5 flex justify-end">
-              <UserMenu 
-                user={user} 
-                onChangePinClick={() => setShowChangePinModal(true)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+      <div className="px-2 sm:px-6 lg:px-8 py-6">
         {tabIdx === null ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-10">
             {tileDefs.map((tile, idx) => (
               <Tile
                 key={tile.title}
@@ -1143,20 +1120,20 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow p-0 sm:p-0 relative animate-fadein">
-            <button
-              onClick={handleBack}
-              className="absolute left-0 top-0 m-4 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium shadow-sm border border-gray-300"
-              style={{ zIndex: 10 }}
-            >
-              ← Back
-            </button>
-            <div className="pt-14 px-2 sm:px-6">
-              <Tabs tabs={tabs} initial={0} active={tabIdx} onChange={setTabIdx} />
+          <div className="relative animate-fadein">
+            <div className="sticky top-0 -mt-2 mb-4 flex items-center justify-between bg-white/60 backdrop-blur px-3 py-2 rounded-lg shadow-sm border border-slate-200">
+              <button
+                onClick={handleBack}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 shadow"
+              >
+                <span>← Back</span>
+              </button>
+              <div className="text-[11px] text-slate-500 font-medium tracking-wide">Navigate modules</div>
             </div>
+            <Tabs tabs={tabs} initial={0} active={tabIdx} onChange={setTabIdx} />
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

@@ -6,6 +6,7 @@ import ForcePasswordChangeModal from '../../components/ForcePasswordChangeModal'
 import ChangePinModal from '../../components/ChangePinModal'
 import MachineSettingsTable from '../../components/MachineSettingsTable'
 import UserMenu from '../../components/UserMenu'
+import DashboardLayout from '../../components/DashboardLayout'
 
 // Hardcoded machine list
 const AVAILABLE_MACHINES = [
@@ -415,7 +416,35 @@ export default function OperatorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <DashboardLayout
+      user={user}
+      title="Operator Shift Console"
+      subtitle="Select machines, manage queue & progress"
+      onLogoClick={() => {
+        try {
+          const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+          const parsed = saved ? JSON.parse(saved) : null;
+          const rawRole = (parsed?.role || user?.role || '').toString();
+          const role = rawRole.trim().toLowerCase();
+          const allowed = ['admin','manager','operator'];
+          if (allowed.includes(role)) {
+            router.push(`/dashboard/${role}`);
+          } else if (role.includes('admin')) {
+            router.push('/dashboard/admin');
+          } else if (role.includes('manager')) {
+            router.push('/dashboard/manager');
+          } else if (role.includes('operator') || role.includes('worker')) {
+            router.push('/dashboard/operator');
+          } else {
+            router.push('/login');
+          }
+        } catch (e) {
+          router.push('/login');
+        }
+      }}
+      rightContent={<UserMenu user={user} onChangePinClick={() => setShowChangePinModal(true)} />}
+      banner={null}
+    >
         {/* Force Password Change Modal */}
         {showPasswordChangeModal && (
           <ForcePasswordChangeModal 
@@ -436,61 +465,9 @@ export default function OperatorDashboard() {
           />
         )}
       
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-          <div className="flex items-center py-3 sm:py-4">
-            <div className="flex items-center gap-2 sm:gap-3 w-2/5">
-              <button 
-                onClick={() => {
-                  try {
-                    const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
-                    const parsed = saved ? JSON.parse(saved) : null;
-                    const rawRole = (parsed?.role || user?.role || '').toString();
-                    const role = rawRole.trim().toLowerCase();
-                    const allowed = ['admin','manager','operator'];
-                    if (allowed.includes(role)) {
-                      router.push(`/dashboard/${role}`);
-                    } else if (role.includes('admin')) {
-                      router.push('/dashboard/admin');
-                    } else if (role.includes('manager')) {
-                      router.push('/dashboard/manager');
-                    } else if (role.includes('operator') || role.includes('worker')) {
-                      router.push('/dashboard/operator');
-                    } else {
-                      router.push('/login');
-                    }
-                  } catch (e) {
-                    router.push('/login');
-                  }
-                }}
-                className="hover:opacity-80 transition-opacity flex-shrink-0 w-28 h-10 sm:w-40 sm:h-12 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                title="Home"
-              >
-                <img 
-                  src="/logo.png" 
-                  alt="JD Cutting Tools" 
-                  className="w-full h-full object-contain"
-                />
-              </button>
-              <div className="hidden sm:block">
-                <p className="text-sm text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
-                <p className="text-xs text-gray-500">Operator Dashboard</p>
-              </div>
-            </div>
-            <div className="w-3/5 flex justify-end">
-              <UserMenu 
-                user={user} 
-                onChangePinClick={() => setShowChangePinModal(true)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
-        <div className="bg-white rounded-lg shadow p-4 sm:p-8">
+      <div className="px-2 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white/80 backdrop-blur rounded-xl shadow p-4 sm:p-8 ring-1 ring-black/5">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
               <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -809,7 +786,7 @@ export default function OperatorDashboard() {
         </div>
 
         {/* Work Status */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Tasks</h3>
             <div className="space-y-3">
@@ -865,6 +842,6 @@ export default function OperatorDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   )
 }
