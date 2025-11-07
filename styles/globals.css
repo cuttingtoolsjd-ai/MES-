@@ -1,7 +1,7 @@
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   background-color: #f5f5f5;
 }
@@ -9,7 +9,7 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+  font-family: var(--font-inter), var(--font-poppins), -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   background-color: #fff;
   color: #111;
@@ -317,6 +317,7 @@ a {
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   transition: background 0.2s, color 0.2s;
+  font-size: 0.9rem;
 }
 .btn-primary:hover {
   background: #fff;
@@ -330,26 +331,83 @@ a {
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   transition: background 0.2s, color 0.2s;
+  font-size: 0.9rem;
 }
 .btn-secondary:hover {
   background: #111;
   color: #fff;
 }
 
+/* Mobile button adjustments */
+@media (max-width: 640px) {
+  .btn-primary, .btn-secondary {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+  }
+}
+
 /* Input styles */
+.input-field {
+  background: #fff;
+  color: #111;
+  border: 1px solid #111;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-family: 'Inter', 'Poppins', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  font-size: 0.9rem;
+}
 input, select, textarea {
   background: #fff;
   color: #111;
   border: 1px solid #111;
   border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1rem;
   font-family: 'Inter', 'Poppins', sans-serif;
   transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 0.9rem;
 }
+.input-field:focus,
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: #1e40af;
   box-shadow: 0 0 0 2px #1e40af33;
+}
+
+/* Mobile input adjustments */
+@media (max-width: 640px) {
+  .input-field,
+  input, select, textarea {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Alert styles */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+.alert-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.alert-success {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+/* Mobile alert adjustments */
+@media (max-width: 640px) {
+  .alert {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
 }
 
 /* Tab styles */
@@ -427,4 +485,57 @@ input:focus, select:focus, textarea:focus {
 }
 @keyframes slideUp {
   to { transform: translateY(0); opacity: 1; }
+}
+/* Print Styles for Production Plan */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .fixed.inset-0 * {
+    visibility: visible !important;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:max-h-none {
+    max-height: none !important;
+  }
+  
+  .print\:overflow-visible {
+    overflow: visible !important;
+  }
+  
+  .print\:break-after-page {
+    page-break-after: always;
+    break-after: page;
+  }
+  
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+  
+  table {
+    page-break-inside: avoid;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+  }
+  
+  .shadow-2xl, .shadow-lg, .shadow-md, .shadow {
+    box-shadow: none !important;
+  }
+  
+  .bg-blue-600, .bg-orange-600, .bg-purple-600, .bg-green-600, .text-white {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

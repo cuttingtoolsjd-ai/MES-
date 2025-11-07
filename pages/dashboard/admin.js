@@ -17,253 +17,24 @@ import MachineIdleGraph from '../../components/MachineIdleGraph'
 import MachineEfficiencyGraph from '../../components/MachineEfficiencyGraph'
 import MachineSettingsTable from '../../components/MachineSettingsTable'
 import ForcePasswordChangeModal from '../../components/ForcePasswordChangeModal'
+import DispatchTab from '../../components/admin/DispatchTab'
+import EmployeeForm from '../../components/admin/EmployeeForm'
+import PermissionRequestsTable from '../../components/admin/PermissionRequestsTable'
+import UserMenu from '../../components/UserMenu'
+import ChangePinModal from '../../components/ChangePinModal'
 import Link from 'next/link'
-
-// --- DispatchTab component ---
-function DispatchTab({ user }) {
-  const [workOrders, setWorkOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [selectedWO, setSelectedWO] = useState(null)
-  const [markingNotes, setMarkingNotes] = useState('')
-  const [dispatchNotes, setDispatchNotes] = useState('')
-  const [processing, setProcessing] = useState(false)
-
-  useEffect(() => {
-    fetchDispatchWorkOrders()
-  }, [])
-
-  async function fetchDispatchWorkOrders() {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('work_orders')
-        .select('*')
-        .in('status', ['Quality Done', 'Coating Done', 'Ready for Dispatch', 'Marking Done'])
-        .order('ready_for_dispatch_at', { ascending: false, nullsFirst: false })
-      
-      if (error) throw error
-      setWorkOrders(data || [])
-    } catch (err) {
-      setMessage('Error loading work orders: ' + err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleSendToMarking(woId) {
-    setProcessing(true)
-    setMessage('')
-    try {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({
-          marking_completed_at: new Date().toISOString(),
-          marking_completed_by: user.username,
-          marking_notes: markingNotes,
-          status: 'Marking Done'
-        })
-        .eq('id', woId)
-      
-      if (error) throw error
-      setMessage('✅ Work order sent to marking successfully!')
-      setMarkingNotes('')
-      setSelectedWO(null)
-      fetchDispatchWorkOrders()
-    } catch (err) {
-      setMessage('❌ Error: ' + err.message)
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  async function handleMarkDispatchDone(woId) {
-    setProcessing(true)
-    setMessage('')
-    try {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({
-          dispatched_at: new Date().toISOString(),
-          dispatched_by: user.username,
-          dispatch_notes: dispatchNotes,
-          status: 'Dispatched',
-          ready_for_dispatch_at: new Date().toISOString(),
-          ready_for_dispatch_by: user.username
-        })
-        .eq('id', woId)
-      
-      if (error) throw error
-      setMessage('✅ Work order dispatched successfully!')
-      setDispatchNotes('')
-      setSelectedWO(null)
-      fetchDispatchWorkOrders()
-    } catch (err) {
-      setMessage('❌ Error: ' + err.message)
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Dispatch Management</h2>
-        <button
-          onClick={fetchDispatchWorkOrders}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          🔄 Refresh
-        </button>
-      </div>
-
-      {message && (
-        <div className={`mb-4 p-4 rounded-md ${
-          message.includes('✅') 
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-center py-8">Loading work orders...</div>
-      ) : workOrders.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No work orders ready for dispatch
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">WO No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tool Code</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {workOrders.map((wo) => (
-                <tr key={wo.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {wo.work_order_no}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {wo.tool_code}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {wo.quantity}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      wo.status === 'Ready for Dispatch' 
-                        ? 'bg-green-100 text-green-800'
-                        : wo.status === 'Marking Done'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {wo.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {selectedWO === wo.id ? (
-                      <div className="space-y-2">
-                        {(wo.status === 'Quality Done' || wo.status === 'Coating Done') && (
-                          <div>
-                            <input
-                              type="text"
-                              placeholder="Marking notes (optional)"
-                              value={markingNotes}
-                              onChange={(e) => setMarkingNotes(e.target.value)}
-                              className="px-2 py-1 border rounded text-sm w-full mb-2"
-                            />
-                            <button
-                              onClick={() => handleSendToMarking(wo.id)}
-                              disabled={processing}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 mr-2"
-                            >
-                              Send to Marking
-                            </button>
-                          </div>
-                        )}
-                        {(wo.status === 'Marking Done' || wo.status === 'Ready for Dispatch') && (
-                          <div>
-                            <input
-                              type="text"
-                              placeholder="Dispatch notes (optional)"
-                              value={dispatchNotes}
-                              onChange={(e) => setDispatchNotes(e.target.value)}
-                              className="px-2 py-1 border rounded text-sm w-full mb-2"
-                            />
-                            <button
-                              onClick={() => handleMarkDispatchDone(wo.id)}
-                              disabled={processing}
-                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-300 mr-2"
-                            >
-                              Mark Dispatched
-                            </button>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedWO(null)
-                            setMarkingNotes('')
-                            setDispatchNotes('')
-                          }}
-                          className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedWO(wo.id)}
-                        className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                      >
-                        Process
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-md border border-blue-200">
-        <h3 className="font-semibold text-blue-900 mb-2">📋 Dispatch Process Flow:</h3>
-        <ol className="list-decimal list-inside text-sm text-blue-800 space-y-2">
-          <li><strong>Quality/Coating Done:</strong> Work orders arrive after production completion</li>
-          <li><strong>Send to Marking:</strong> Click "Process" → "Send to Marking" to add marking details</li>
-          <li><strong>Ready for Dispatch:</strong> Items automatically become ready after marking</li>
-          <li><strong>Dispatch:</strong> Click "Process" → "Mark Dispatched" to complete the order</li>
-          <li><strong>Completed:</strong> Dispatched orders move to "Completed WOs" tab</li>
-        </ol>
-        <div className="mt-3 p-2 bg-white rounded border border-blue-300">
-          <p className="text-xs text-blue-700">
-            💡 <strong>Tip:</strong> Work orders shown here are linked from the main overview. 
-            When production marks items as "Quality Done" or "Coating Done", they appear here automatically.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function AdminDashboard() {
   // ...existing code...
   const [showMachineSettings, setShowMachineSettings] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [user, setUser] = useState(null)
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false)
   // Planner controls (Day/Shift) shown above the layout
   const SHIFT_OPTIONS = [
-    { value: 'first', label: 'First Shift' },
-    { value: 'second', label: 'Second Shift' },
-    { value: 'night', label: 'Night Shift' },
+     { value: 1, label: 'Shift 1 (7:00 AM - 3:00 PM)' },
+     { value: 2, label: 'Shift 2 (3:00 PM - 11:00 PM)' },
+     { value: 3, label: 'Shift 3 (11:00 PM - 7:00 AM)' },
   ]
   const getTodayStr = () => new Date().toISOString().slice(0, 10)
   const [planDay, setPlanDay] = useState(getTodayStr())
@@ -289,12 +60,20 @@ export default function AdminDashboard() {
       tab: 1,
     },
     {
+      title: 'Work Order Overview',
+      description: 'View all work orders and status',
+      icon: '📋',
+      accent: 'amber',
+      kpi: '',
+      tab: 2,
+    },
+    {
       title: 'Tool Master',
       description: 'Catalog of tools with korv and times',
       icon: '🧰',
       accent: 'green',
       kpi: kpis.tools,
-      tab: 2,
+      tab: 3,
     },
     {
       title: 'Permission Requests',
@@ -302,7 +81,7 @@ export default function AdminDashboard() {
       icon: '✅',
       accent: 'orange',
       kpi: kpis.approvalsPending,
-      tab: 3,
+      tab: 4,
     },
     (user.role === 'admin' || user.role === 'manager') && {
       title: 'Stock & Inventory',
@@ -310,7 +89,7 @@ export default function AdminDashboard() {
       icon: '📦',
       accent: 'pink',
       kpi: kpis.stockItems,
-      tab: 4,
+      tab: 5,
     },
     {
       title: 'Factory Planning',
@@ -318,7 +97,7 @@ export default function AdminDashboard() {
       icon: '🏭',
       accent: 'yellow',
       kpi: '',
-      tab: 5,
+      tab: 6,
     },
     (user.role === 'admin' || user.role === 'manager') && {
       title: 'Dispatch',
@@ -332,11 +111,6 @@ export default function AdminDashboard() {
 
   const handleTileClick = useCallback(idx => setTabIdx(idx), [])
   const handleBack = useCallback(() => setTabIdx(null), [])
-  const [users, setUsers] = useState([])
-  const [loadingUsers, setLoadingUsers] = useState(true)
-  const [userMessage, setUserMessage] = useState('')
-  const [userForm, setUserForm] = useState({ username: '', role: 'operator', assigned_machine: '' })
-  const [userSubmitting, setUserSubmitting] = useState(false)
 
   const [workOrders, setWorkOrders] = useState([])
   const [loadingWorkOrders, setLoadingWorkOrders] = useState(true)
@@ -369,10 +143,6 @@ export default function AdminDashboard() {
   const [editWorkOrder, setEditWorkOrder] = useState(null)
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editMessage, setEditMessage] = useState('')
-  // --- PERMISSION REQUESTS ---
-  const [permissionRequests, setPermissionRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [requestMessage, setRequestMessage] = useState('');
   // --- TOOL MASTER ---
   async function fetchToolMaster() {
     try {
@@ -386,157 +156,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchToolMaster()
-    fetchPermissionRequests()
   }, [])
-
-  // --- PERMISSION REQUESTS ---
-  async function fetchPermissionRequests() {
-    setLoadingRequests(true)
-    try {
-      const { data, error } = await supabase
-        .from('manager_permission_requests')
-        .select('*')
-        .order('requested_at', { ascending: false })
-      if (error) {
-        setRequestMessage('Error fetching requests: ' + error.message)
-      } else {
-        setPermissionRequests(data || [])
-      }
-    } catch (err) {
-      setRequestMessage('Unexpected error: ' + err.message)
-    } finally {
-      setLoadingRequests(false)
-    }
-  }
-
-  async function handleApproveRequest(requestId, action, toolCode) {
-    try {
-      if (action === 'delete') {
-        // Delete the tool immediately
-        const { error: delError } = await supabase
-          .from('tool_master')
-          .delete()
-          .eq('tool_code', toolCode);
-        if (delError) {
-          setRequestMessage('Error deleting tool: ' + delError.message);
-          return;
-        }
-        // Mark request as approved
-        const { error: reqError } = await supabase
-          .from('manager_permission_requests')
-          .update({
-            status: 'approved',
-            reviewed_by: user.username,
-            reviewed_at: new Date().toISOString()
-          })
-          .eq('id', requestId);
-        if (reqError) {
-          setRequestMessage('Error updating request: ' + reqError.message);
-        } else {
-          setRequestMessage(`✅ Tool ${toolCode} deleted and request approved.`);
-          fetchPermissionRequests();
-          setTimeout(() => setRequestMessage(''), 3000);
-        }
-      } else if (action === 'edit') {
-        // Fetch the request to see if it contains tool_data (manager's submitted edit)
-        const { data: reqData, error: reqFetchError } = await supabase
-          .from('manager_permission_requests')
-          .select('*')
-          .eq('id', requestId)
-          .maybeSingle();
-        if (reqFetchError) {
-          setRequestMessage('Error fetching request: ' + reqFetchError.message);
-          return;
-        }
-        if (reqData && reqData.tool_data) {
-          // This is a manager's submitted edit, apply it to tool_master
-          const toolData = reqData.tool_data;
-          const computedKorv = ((parseFloat(toolData.cnc_time || 0) + parseFloat(toolData.cylindrical_time || 0) + parseFloat(toolData.tc_time || toolData.tc_estimated || 0)) / 5).toFixed(2)
-          const { error: updateError } = await supabase
-            .from('tool_master')
-            .update({
-              tool_description: toolData.tool_description,
-              standard_korv: parseFloat(computedKorv),
-              cnc_time: toolData.cnc_time ? parseFloat(toolData.cnc_time) : 0,
-              cylindrical_time: toolData.cylindrical_time ? parseFloat(toolData.cylindrical_time) : 0,
-              tc_time: toolData.tc_time ? parseFloat(toolData.tc_time) : (toolData.tc_estimated ? parseFloat(toolData.tc_estimated) : 0),
-              organisational_korv: toolData.organisational_korv ? parseFloat(toolData.organisational_korv) : null,
-              last_updated: new Date().toISOString()
-            })
-            .eq('tool_code', toolCode);
-          if (updateError) {
-            setRequestMessage('Error applying manager edit: ' + updateError.message);
-            return;
-          }
-          // Mark request as approved
-          const { error: reqError } = await supabase
-            .from('manager_permission_requests')
-            .update({
-              status: 'approved',
-              reviewed_by: user.username,
-              reviewed_at: new Date().toISOString()
-            })
-            .eq('id', requestId);
-          if (reqError) {
-            setRequestMessage('Error updating request: ' + reqError.message);
-          } else {
-            setRequestMessage(`✅ Manager's edit applied and request approved for tool ${toolCode}.`);
-            fetchPermissionRequests();
-            setTimeout(() => setRequestMessage(''), 3000);
-          }
-        } else {
-          // First approval: allow manager to edit
-          const { error } = await supabase
-            .from('manager_permission_requests')
-            .update({
-              status: 'approved',
-              reviewed_by: user.username,
-              reviewed_at: new Date().toISOString()
-            })
-            .eq('id', requestId);
-          if (error) {
-            setRequestMessage('Error approving request: ' + error.message);
-          } else {
-            setRequestMessage(`✅ Edit request approved! Manager can now edit tool ${toolCode}.`);
-            fetchPermissionRequests();
-            setTimeout(() => setRequestMessage(''), 3000);
-          }
-        }
-      }
-    } catch (err) {
-      setRequestMessage('Unexpected error: ' + err.message);
-    }
-  }
-
-  async function handleDenyRequest(requestId, adminNotes = '') {
-    try {
-      const { error } = await supabase
-        .from('manager_permission_requests')
-        .update({
-          status: 'denied',
-          reviewed_by: user.username,
-          reviewed_at: new Date().toISOString(),
-          admin_notes: adminNotes
-        })
-        .eq('id', requestId)
-      if (error) {
-        setRequestMessage('Error denying request: ' + error.message)
-      } else {
-        setRequestMessage('❌ Request denied.')
-        fetchPermissionRequests()
-        setTimeout(() => setRequestMessage(''), 3000)
-      }
-    } catch (err) {
-      setRequestMessage('Unexpected error: ' + err.message)
-    }
-  }
 
   // --- WORK ORDER FORM ---
   function handleWorkOrderFormChange(e) {
     const { name, value } = e.target
     setWorkOrderForm((prev) => ({ ...prev, [name]: value }))
+    
+    const isRegrindingWO = (workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE')
+    
     if (name === 'quantity') {
-      if (toolLookup.found && toolLookup.tool) {
+      // Check if this is a regrinding work order (RE prefix)
+      if (toolLookup.found && toolLookup.tool && !isRegrindingWO) {
+        // For WO prefix (including WO123_r), auto-calculate KORV from tool_master
         setWorkOrderForm((prev) => ({
           ...prev,
           quantity: value,
@@ -545,9 +177,11 @@ export default function AdminDashboard() {
           total_price: prev.price && value ? (parseFloat(prev.price) * parseFloat(value)).toString() : '',
         }))
       } else {
+        // For RE prefix, recalculate total_korv if korv_per_unit exists
         setWorkOrderForm((prev) => ({
           ...prev,
           quantity: value,
+          total_korv: prev.korv_per_unit && value ? (parseFloat(prev.korv_per_unit) * parseFloat(value)).toString() : '',
           total_price: prev.price && value ? (parseFloat(prev.price) * parseFloat(value)).toString() : '',
         }))
       }
@@ -559,19 +193,65 @@ export default function AdminDashboard() {
         total_price: prev.quantity && value ? (parseFloat(value) * parseFloat(prev.quantity)).toString() : '',
       }))
     }
+    // For RE prefix WOs, when cnc_time changes, auto-calculate korv_per_unit (1 KORV = 5 min)
+    if (name === 'cnc_time' && isRegrindingWO) {
+      const korvPerUnit = value ? (parseFloat(value) / 5).toFixed(2) : ''
+      setWorkOrderForm((prev) => ({
+        ...prev,
+        korv_per_unit: korvPerUnit,
+        total_korv: korvPerUnit && prev.quantity ? (parseFloat(korvPerUnit) * parseFloat(prev.quantity)).toString() : '',
+      }))
+    }
+    // For RE prefix WOs, when korv_per_unit changes manually, recalculate total_korv
+    if (name === 'korv_per_unit') {
+      setWorkOrderForm((prev) => ({
+        ...prev,
+        total_korv: value && prev.quantity ? (parseFloat(value) * parseFloat(prev.quantity)).toString() : '',
+      }))
+    }
   }
 
   async function handleToolCodeBlur() {
     const code = (workOrderForm.tool_code || '').trim()
     if (!code) return
+    
+    // Check if this is a regrinding work order (RE prefix)
+    const isRegrindingWO = (workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE')
+    
+    // For RE work orders, skip tool_master lookup - users set KORV manually
+    if (isRegrindingWO) {
+      setToolLookup({ found: false, loading: false, tool: null })
+      // Try to find in regrinding table for autocomplete
+      const { data: regrindData } = await supabase
+        .from('regrinding')
+        .select('*')
+        .eq('tool_code', code)
+        .maybeSingle()
+      
+      if (regrindData) {
+        setWorkOrderForm((prev) => ({
+          ...prev,
+          tool_description: regrindData.tool_description || '',
+          korv_per_unit: regrindData.standard_korv || '',
+          total_korv: prev.quantity && regrindData.standard_korv 
+            ? (parseFloat(regrindData.standard_korv) * parseFloat(prev.quantity)).toString() 
+            : '',
+        }))
+      }
+      return
+    }
+    
+    // For WO work orders, use tool_master lookup
     setToolLookup({ found: false, loading: true, tool: null })
     const { data } = await supabase
       .from('tool_master')
       .select('*')
       .eq('tool_code', code)
       .maybeSingle()
+    
     if (data) {
       setToolLookup({ found: true, loading: false, tool: data })
+      // For WO prefix (including WO123_r), use locked tool_master KORV
       setWorkOrderForm((prev) => ({
         ...prev,
         tool_description: data.tool_description,
@@ -654,27 +334,67 @@ export default function AdminDashboard() {
     setWorkOrderSubmitting(true)
     setWorkOrderMessage('')
     try {
-      // If tool code is new, save to tool_master first
-  if (!toolLookup.found && workOrderForm.tool_code) {
-        // Auto-calculate korv per unit from times (1 korv = 5 min)
-        const standardKorv = ((parseFloat(workOrderForm.cnc_time || 0) + parseFloat(workOrderForm.cylindrical_time || 0) + parseFloat(workOrderForm.tc_time || workOrderForm.tc_estimated || 0)) / 5).toFixed(2)
-        let { error: toolError } = await supabase
-          .from('tool_master')
-          .insert([{ 
-            tool_code: workOrderForm.tool_code, 
-            tool_description: workOrderForm.tool_description, 
-            standard_korv: parseFloat(standardKorv),
-            cnc_time: workOrderForm.cnc_time ? parseFloat(workOrderForm.cnc_time) : 0,
-            cylindrical_time: workOrderForm.cylindrical_time ? parseFloat(workOrderForm.cylindrical_time) : 0,
-            tc_time: workOrderForm.tc_time ? parseFloat(workOrderForm.tc_time) : (workOrderForm.tc_estimated ? parseFloat(workOrderForm.tc_estimated) : 0),
-            organisational_korv: workOrderForm.organisational_korv ? parseFloat(workOrderForm.organisational_korv) : null
-          }])
-        if (toolError) {
-          setWorkOrderMessage('Error saving new tool: ' + toolError.message)
-          setWorkOrderSubmitting(false)
-          return
+      const isRegrindingWO = (workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE')
+      
+      if (isRegrindingWO) {
+        // For RE work orders: save to regrinding table (not tool_master)
+        if (workOrderForm.tool_code && workOrderForm.korv_per_unit) {
+          // Check if regrinding tool already exists
+          const { data: existingRegrind } = await supabase
+            .from('regrinding')
+            .select('id')
+            .eq('tool_code', workOrderForm.tool_code)
+            .maybeSingle()
+          
+          if (existingRegrind) {
+            // Update existing regrinding tool
+            await supabase
+              .from('regrinding')
+              .update({
+                tool_description: workOrderForm.tool_description || '',
+                standard_korv: parseFloat(workOrderForm.korv_per_unit),
+                cnc_time: workOrderForm.cnc_time ? parseFloat(workOrderForm.cnc_time) : 0,
+                updated_at: new Date().toISOString(),
+                updated_by: user.username
+              })
+              .eq('tool_code', workOrderForm.tool_code)
+          } else {
+            // Insert new regrinding tool
+            await supabase
+              .from('regrinding')
+              .insert([{
+                tool_code: workOrderForm.tool_code,
+                tool_description: workOrderForm.tool_description || '',
+                standard_korv: parseFloat(workOrderForm.korv_per_unit),
+                cnc_time: workOrderForm.cnc_time ? parseFloat(workOrderForm.cnc_time) : 0,
+                created_by: user.username
+              }])
+          }
+        }
+      } else {
+        // For WO work orders: save to tool_master if new tool
+        if (!toolLookup.found && workOrderForm.tool_code) {
+          // Auto-calculate korv per unit from times (1 korv = 5 min)
+          const standardKorv = ((parseFloat(workOrderForm.cnc_time || 0) + parseFloat(workOrderForm.cylindrical_time || 0) + parseFloat(workOrderForm.tc_time || workOrderForm.tc_estimated || 0)) / 5).toFixed(2)
+          let { error: toolError } = await supabase
+            .from('tool_master')
+            .insert([{ 
+              tool_code: workOrderForm.tool_code, 
+              tool_description: workOrderForm.tool_description, 
+              standard_korv: parseFloat(standardKorv),
+              cnc_time: workOrderForm.cnc_time ? parseFloat(workOrderForm.cnc_time) : 0,
+              cylindrical_time: workOrderForm.cylindrical_time ? parseFloat(workOrderForm.cylindrical_time) : 0,
+              tc_time: workOrderForm.tc_time ? parseFloat(workOrderForm.tc_time) : (workOrderForm.tc_estimated ? parseFloat(workOrderForm.tc_estimated) : 0),
+              organisational_korv: workOrderForm.organisational_korv ? parseFloat(workOrderForm.organisational_korv) : null
+            }])
+          if (toolError) {
+            setWorkOrderMessage('Error saving new tool: ' + toolError.message)
+            setWorkOrderSubmitting(false)
+            return
+          }
         }
       }
+      
       // Now create work order
       const { error } = await supabase
         .from('work_orders')
@@ -801,31 +521,41 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user is logged in and has admin role
-    const currentUser = localStorage.getItem('currentUser')
+    // Try multiple sources for auth data (localStorage → sessionStorage)
+    let currentUser = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser')
+    
     if (!currentUser) {
       router.push('/login')
       return
     }
-    const parsed = JSON.parse(currentUser)
-    const normalizedRole = String(parsed?.role || '').toLowerCase()
-    const userData = { ...parsed, role: normalizedRole }
-    // persist normalized role so other pages are consistent
-    localStorage.setItem('currentUser', JSON.stringify(userData))
-    if (userData.role !== 'admin') {
-      router.push(`/dashboard/${userData.role}`)
-      return
-    }
-    setUser(userData)
     
-    // Check if password change is required
-    if (userData.password_change_required) {
-      setShowPasswordChangeModal(true)
+    try {
+      const parsed = JSON.parse(currentUser)
+      const normalizedRole = String(parsed?.role || '').toLowerCase()
+      const userData = { ...parsed, role: normalizedRole }
+      
+      // Ensure both storage methods have the latest data
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+      sessionStorage.setItem('currentUser', JSON.stringify(userData))
+      
+      if (userData.role !== 'admin') {
+        router.push(`/dashboard/${userData.role}`)
+        return
+      }
+      setUser(userData)
+      
+      // Check if password change is required
+      if (userData.password_change_required) {
+        setShowPasswordChangeModal(true)
+      }
+      
+      fetchWorkOrders()
+      fetchStockItems()
+      fetchKpis()
+    } catch (error) {
+      console.error('Auth error:', error)
+      router.push('/login')
     }
-    
-    fetchUsers()
-    fetchWorkOrders()
-    fetchStockItems()
-    fetchKpis()
   }, [router])
 
   async function fetchKpis() {
@@ -846,93 +576,6 @@ export default function AdminDashboard() {
       })
     } catch (_) {
       // swallow
-    }
-  }
-
-  // --- USERS ---
-  async function fetchUsers() {
-    setLoadingUsers(true)
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, role, assigned_machine, active, created_at, updated_at, korv')
-        .order('created_at', { ascending: false })
-      if (error) {
-        setUserMessage('Error fetching users: ' + error.message)
-      } else {
-        setUsers(data || [])
-      }
-    } catch (err) {
-      setUserMessage('Unexpected error: ' + err.message)
-    } finally {
-      setLoadingUsers(false)
-    }
-  }
-
-  async function handleAddUser(e) {
-    e.preventDefault()
-    if (!userForm.username.trim()) {
-      setUserMessage('Username is required')
-      return
-    }
-    setUserSubmitting(true)
-    setUserMessage('')
-    try {
-      const { error } = await supabase
-        .from('users')
-        .insert([{
-          username: userForm.username.trim(),
-          role: userForm.role,
-          assigned_machine: userForm.assigned_machine.trim() || null,
-          pin: '000000',
-         active: true,
-         password_change_required: true
-        }])
-      if (error) {
-        setUserMessage('Error creating user: ' + error.message)
-      } else {
-        setUserMessage('✅ Employee added successfully!')
-        setUserForm({ username: '', role: 'operator', assigned_machine: '' })
-        fetchUsers()
-        setTimeout(() => setUserMessage(''), 3000)
-      }
-    } catch (err) {
-      setUserMessage('Unexpected error: ' + err.message)
-    } finally {
-      setUserSubmitting(false)
-    }
-  }
-
-  async function handleDeactivateUser(userId) {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ active: false })
-        .eq('id', userId)
-      if (error) {
-        setUserMessage('Error deactivating user: ' + error.message)
-      } else {
-        fetchUsers()
-      }
-    } catch (err) {
-      setUserMessage('Unexpected error: ' + err.message)
-    }
-  }
-
-  // --- REACTIVATE USER ---
-  async function handleReactivateUser(userId) {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ active: true })
-        .eq('id', userId)
-      if (error) {
-        setUserMessage('Error reactivating user: ' + error.message)
-      } else {
-        fetchUsers()
-      }
-    } catch (err) {
-      setUserMessage('Unexpected error: ' + err.message)
     }
   }
 
@@ -1024,98 +667,9 @@ export default function AdminDashboard() {
 
   const tabs = [
     {
-      label: 'Work Order Overview',
-      content: <WorkOrderOverview user={user} />
-    },
-    {
       label: 'Add Employee',
-      content: (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Add Employee Form */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Add New Employee</h2>
-            {userMessage && (
-              <div className={`mb-4 p-4 rounded-md ${
-                userMessage.includes('✅') || userMessage.includes('successfully')
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                {userMessage}
-              </div>
-            )}
-            <form onSubmit={handleAddUser} className="space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                <input
-                  type="text"
-                  id="username"
-                  value={userForm.username}
-                  onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                <select
-                  id="role"
-                  value={userForm.role}
-                  onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="operator">Operator</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="assigned_machine" className="block text-sm font-medium text-gray-700 mb-1">Assigned Machine (Optional)</label>
-                <input
-                  type="text"
-                  id="assigned_machine"
-                  value={userForm.assigned_machine}
-                  onChange={(e) => setUserForm({ ...userForm, assigned_machine: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., CNC-001, Lathe-003"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={userSubmitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
-              >
-                {userSubmitting ? 'Adding Employee...' : 'Add Employee'}
-              </button>
-            </form>
-            <div className="mt-4 p-3 bg-gray-50 rounded-md">
-              <p className="text-sm text-gray-600">
-                <strong>Note:</strong> New employees will have a default PIN of <code className="bg-gray-200 px-1 rounded">000000</code>
-              </p>
-            </div>
-          </div>
-          {/* Employee Table */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">All Employees</h2>
-            {loadingUsers ? (
-              <div className="text-center py-4">Loading employees...</div>
-            ) : users.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">No employees found</div>
-            ) : (
-              <EmployeeTable users={users} onDeactivate={handleDeactivateUser} onReactivate={handleReactivateUser} />
-            )}
-            <div className="mt-4 text-center">
-              <button
-                onClick={fetchUsers}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                🔄 Refresh List
-              </button>
-            </div>
-            </div>
-          </div>
-        )
-      },
+      content: <EmployeeForm onUserCreated={fetchKpis} />
+    },
     {
       label: 'Work Orders',
       content: (
@@ -1149,8 +703,20 @@ export default function AdminDashboard() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Tool Description</label>
               <input type="text" name="tool_description" value={workOrderForm.tool_description} onChange={handleWorkOrderFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" readOnly={toolLookup.found} />
             </div>
-            {/* If tool not found, show extra fields for new tool */}
-            {!toolLookup.found && workOrderForm.tool_code && !toolLookup.loading && (
+            {/* For RE work orders: Only show CNC Time and Korv fields */}
+            {(workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE') && workOrderForm.tool_code && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CNC Time (min)
+                    <span className="text-xs text-blue-600 ml-2">(1 KORV = 5 min)</span>
+                  </label>
+                  <input type="number" name="cnc_time" value={workOrderForm.cnc_time || ''} onChange={handleWorkOrderFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-blue-50" min="0" step="0.01" placeholder="Enter CNC time to auto-calculate KORV" />
+                </div>
+              </>
+            )}
+            {/* For WO work orders: Show all time fields if tool not found */}
+            {!(workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE') && !toolLookup.found && workOrderForm.tool_code && !toolLookup.loading && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">CNC Time (min)</label>
@@ -1183,8 +749,25 @@ export default function AdminDashboard() {
               <input type="number" name="price" value={workOrderForm.price} onChange={handleWorkOrderFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" required min="0" step="0.01" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Korv per Unit</label>
-              <input type="number" name="korv_per_unit" value={workOrderForm.korv_per_unit} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Korv per Unit
+                {(workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE') && (
+                  <span className="text-xs text-green-600 ml-2">(Auto-calculated from CNC time)</span>
+                )}
+              </label>
+              <input 
+                type="number" 
+                name="korv_per_unit" 
+                value={workOrderForm.korv_per_unit} 
+                onChange={handleWorkOrderFormChange}
+                readOnly={!(workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE')}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
+                  (workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE') 
+                    ? 'bg-green-50' 
+                    : 'bg-gray-100'
+                }`}
+                placeholder={(workOrderForm.work_order_no || '').trim().toUpperCase().startsWith('RE') ? 'Auto-calculated' : ''}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Total Korv</label>
@@ -1325,16 +908,27 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-          <div className="mt-4 text-center">
+          <div className="mt-4 flex flex-col sm:flex-row sm:justify-between gap-3">
             <button
               onClick={fetchWorkOrders}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium"
             >
               🔄 Refresh List
             </button>
+            <button
+              type="button"
+              onClick={() => setTabIdx(tabs.findIndex(t => t.label === 'Work Order Overview'))}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
+            >
+              📋 Go to Overview
+            </button>
           </div>
         </div>
       )
+    },
+    {
+      label: 'Work Order Overview',
+      content: <WorkOrderOverview user={user} />
     },
     {
       label: 'Tool Master',
@@ -1373,101 +967,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Permission Requests',
-      content: (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Manager Permission Requests</h2>
-          {requestMessage && (
-            <div className={`mb-4 p-4 rounded-md ${
-              requestMessage.includes('✅') || requestMessage.includes('successfully')
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-              {requestMessage}
-            </div>
-          )}
-          {loadingRequests ? (
-            <div className="text-center py-4">Loading requests...</div>
-          ) : permissionRequests.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">No permission requests found</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool Code</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested At</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {permissionRequests.map((request) => (
-                    <tr key={request.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{request.requested_by}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{request.tool_code}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          request.action === 'edit' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {request.action === 'edit' ? 'Edit' : 'Delete'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-500 max-w-xs truncate" title={request.reason}>
-                        {request.reason}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          request.status === 'pending' ? 'bg-blue-100 text-blue-800' :
-                          request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {request.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(request.requested_at).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        {request.status === 'pending' ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveRequest(request.id, request.action, request.tool_code)}
-                              className="text-green-600 hover:text-green-800 font-medium"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleDenyRequest(request.id)}
-                              className="text-red-600 hover:text-red-800 font-medium"
-                            >
-                              Deny
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">
-                            {request.status === 'approved' ? 'Approved' : 'Denied'} by {request.reviewed_by}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="mt-4 text-center">
-            <button
-              onClick={fetchPermissionRequests}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              🔄 Refresh Requests
-            </button>
-          </div>
-        </div>
-      )
+      content: <PermissionRequestsTable user={user} />
     },
     (user.role === 'admin' || user.role === 'manager') && {
       label: 'Stock & Inventory',
@@ -1486,13 +986,18 @@ export default function AdminDashboard() {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Shift</label>
-              <select value={planShift} onChange={(e) => setPlanShift(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-sm">
+              <select value={planShift} onChange={(e) => setPlanShift(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm">
                 {SHIFT_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
             <div className="text-xs text-gray-400 ml-4">(Browse different days and shifts to plan work)</div>
+          </div>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>ℹ️ Note:</strong> Shift 1 is also used as General shift (9:30 AM - 6:00 PM)
+            </p>
           </div>
           <div className="mt-8">
             <FactoryLayout selectedDay={planDay} selectedShift={planShift} />
@@ -1557,38 +1062,73 @@ export default function AdminDashboard() {
           onPasswordChanged={handlePasswordChanged}
         />
       )}
+
+      {/* Change PIN Modal */}
+      {showChangePinModal && (
+        <ChangePinModal 
+          user={user} 
+          onClose={() => setShowChangePinModal(false)}
+          onSuccess={() => {
+            setShowChangePinModal(false);
+            alert('PIN changed successfully! Please use your new PIN on next login.');
+          }}
+        />
+      )}
       
       {/* Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center py-3 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3 w-2/5">
+              <button 
+                onClick={() => {
+                  try {
+                    const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+                    const parsed = saved ? JSON.parse(saved) : null;
+                    const rawRole = (parsed?.role || user?.role || '').toString();
+                    const role = rawRole.trim().toLowerCase();
+                    const allowed = ['admin','manager','operator'];
+                    if (allowed.includes(role)) {
+                      router.push(`/dashboard/${role}`);
+                    } else if (role.includes('admin')) {
+                      router.push('/dashboard/admin');
+                    } else if (role.includes('manager')) {
+                      router.push('/dashboard/manager');
+                    } else if (role.includes('operator') || role.includes('worker')) {
+                      router.push('/dashboard/operator');
+                    } else {
+                      router.push('/login');
+                    }
+                  } catch (e) {
+                    router.push('/login');
+                  }
+                }}
+                className="hover:opacity-80 transition-opacity flex-shrink-0 w-28 h-10 sm:w-40 sm:h-12 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                title="Home"
+              >
+                <img 
+                  src="/logo.png" 
+                  alt="JD Cutting Tools" 
+                  className="w-full h-full object-contain"
+                />
+              </button>
+              <div className="hidden sm:block">
+                <p className="text-sm text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+                <p className="text-xs text-gray-500">Admin Dashboard</p>
+              </div>
             </div>
-            <div className="flex gap-4 items-center">
-              <Link href="/kpi-dashboard" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
-                📊 KPI Dashboard
-              </Link>
-              <button
-                onClick={() => router.push('/dashboard/settings')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                ⚙️ Settings
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                Logout
-              </button>
+            <div className="w-3/5 flex justify-end">
+              <UserMenu 
+                user={user} 
+                onChangePinClick={() => setShowChangePinModal(true)}
+              />
             </div>
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         {tabIdx === null ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-8">
             {tileDefs.map((tile, idx) => (
               <Tile
                 key={tile.title}

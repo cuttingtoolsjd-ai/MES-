@@ -1,5 +1,6 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabaseClient';
 import { listStockMovements } from '../lib/stock';
 import WorkOrderStatusTracker from './WorkOrderStatusTracker';
@@ -10,11 +11,75 @@ export default function WorkOrderDetailModal({ order, onClose, user }) {
   const [stockIssues, setStockIssues] = useState([]);
   const [loadingStock, setLoadingStock] = useState(true);
   const [workOrder, setWorkOrder] = useState(order);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const justOpenedRef = useRef(true);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     if (!order) return;
     fetchData();
   }, [order]);
+
+  // Lock scroll and add ESC-to-close while modal is open
+  useEffect(() => {
+    if (!order || !mounted) return;
+    
+    // Save current scroll position to ref
+    scrollYRef.current = window.scrollY;
+    
+    // Lock scroll by fixing body position
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollYRef.current}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      
+      // Remove ALL scroll lock styles
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      
+      // Force scroll restoration
+      requestAnimationFrame(() => {
+        window.scrollTo(0, scrollYRef.current);
+      });
+    };
+  }, [order, onClose, mounted]);
+
+  // Avoid SSR/Next hydration mismatch and ensure we can portal to body
+  useEffect(() => {
+    console.log('Modal mounting, order:', order?.work_order_no);
+    setMounted(true);
+    // Trigger animation after mount
+    setTimeout(() => {
+      console.log('Setting visible to true');
+      setVisible(true);
+    }, 10);
+    justOpenedRef.current = true;
+    // Allow clicks after a brief delay to prevent event bubbling from triggering close
+    const timer = setTimeout(() => {
+      justOpenedRef.current = false;
+    }, 100);
+    return () => {
+      console.log('Modal unmounting');
+      setMounted(false);
+      setVisible(false);
+      clearTimeout(timer);
+    };
+  }, []);
 
   async function fetchData() {
     // Fetch latest work order data
@@ -46,19 +111,75 @@ export default function WorkOrderDetailModal({ order, onClose, user }) {
     setLoadingStock(false);
   }
 
+  if (!mounted || !order) {
+    return null;
+  }
+
+  const handleBackdropClick = (e) => {
+    // Prevent closing if modal just opened (event bubbling from View button)
+    if (justOpenedRef.current) return;
+    // Only close if clicking directly on the backdrop, not on children
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  // Render WITHOUT portal to test
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full mx-2 p-4 relative animate-fadein max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <div className="text-lg font-bold text-blue-700">WO {workOrder.work_order_no}</div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={handleBackdropClick}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: visible ? 'rgba(0, 0, 0, 0.75)' : 'transparent',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999999,
+        transition: 'background-color 0.3s ease',
+        padding: '1rem'
+      }}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full relative"
+        onClick={(e) => e.stopPropagation()}
+        style={{ 
+          maxWidth: '900px',
+          maxHeight: '90vh',
+          backgroundColor: '#FFFFFF',
+          padding: '1.5rem',
+          zIndex: 999999999,
+          overflowY: 'auto',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'scale(1)' : 'scale(0.9)',
+          transition: 'opacity 0.3s ease, transform 0.3s ease'
+        }}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors"
+          style={{ zIndex: 10 }}
+          aria-label="Close"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        
+        <div className="pr-8">
+          <div className="text-lg font-bold text-blue-700 mb-2">WO {workOrder.work_order_no}</div>
+          <div className="text-xs text-gray-500 mb-1">{workOrder.tool_code} — {workOrder.tool_description}</div>
+          <div className="text-xs text-gray-500 mb-1">Qty: {workOrder.quantity}</div>
+          <div className="text-xs text-gray-500 mb-1">Status: <span className="font-semibold">{workOrder.status}</span></div>
+          <div className="text-xs text-gray-400 mb-4">Created: {workOrder.created_on?.slice(0,10)}</div>
         </div>
-        <div className="mb-2">
-          <div className="text-xs text-gray-500">{workOrder.tool_code} — {workOrder.tool_description}</div>
-          <div className="text-xs text-gray-500">Qty: {workOrder.quantity}</div>
-          <div className="text-xs text-gray-500">Status: <span className="font-semibold">{workOrder.status}</span></div>
-        </div>
-        <div className="mb-4 text-xs text-gray-400">Created: {workOrder.created_on?.slice(0,10)}</div>
         
         {/* Status Tracker */}
         {user && (

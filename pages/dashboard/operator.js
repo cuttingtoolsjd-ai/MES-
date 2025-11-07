@@ -3,6 +3,9 @@ import { supabase } from '../../lib/supabaseClient'
 import { useRouter } from 'next/router'
 import SplitWorkOrderModal from '../../components/SplitWorkOrderModal'
 import ForcePasswordChangeModal from '../../components/ForcePasswordChangeModal'
+import ChangePinModal from '../../components/ChangePinModal'
+import MachineSettingsTable from '../../components/MachineSettingsTable'
+import UserMenu from '../../components/UserMenu'
 
 // Hardcoded machine list
 const AVAILABLE_MACHINES = [
@@ -14,7 +17,9 @@ const AVAILABLE_MACHINES = [
 
 export default function OperatorDashboard() {
   const [user, setUser] = useState(null)
-    const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false)
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false)
+  const [showChangePinModal, setShowChangePinModal] = useState(false)
+  const [showMachineSettings, setShowMachineSettings] = useState(false)
   const router = useRouter()
   const [selectedMachines, setSelectedMachines] = useState([]) // Changed to array for multiple machines
   const [orderedAssignments, setOrderedAssignments] = useState([]);
@@ -25,34 +30,45 @@ export default function OperatorDashboard() {
 
   useEffect(() => {
     // Check if user is logged in and has operator role
-    const currentUser = localStorage.getItem('currentUser')
+    // Try multiple sources for auth data (localStorage → sessionStorage)
+    let currentUser = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser')
+    
     if (!currentUser) {
       router.push('/login')
       return
     }
     
-    const parsed = JSON.parse(currentUser)
-    const normalizedRole = String(parsed?.role || '').toLowerCase()
-    const userData = { ...parsed, role: normalizedRole }
-    localStorage.setItem('currentUser', JSON.stringify(userData))
-    if (userData.role !== 'operator') {
-      router.push(`/dashboard/${userData.role}`)
-      return
-    }
-    
-    setUser(userData)
-    
-      // Check if password change is required
-      if (userData.password_change_required) {
-        setShowPasswordChangeModal(true)
+    try {
+      const parsed = JSON.parse(currentUser)
+      const normalizedRole = String(parsed?.role || '').toLowerCase()
+      const userData = { ...parsed, role: normalizedRole }
+      
+      // Ensure both storage methods have the latest data
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+      sessionStorage.setItem('currentUser', JSON.stringify(userData))
+      
+      if (userData.role !== 'operator') {
+        router.push(`/dashboard/${userData.role}`)
+        return
       }
-    
-    // Check if machines were confirmed in this session
-    const machinesConfirmed = sessionStorage.getItem('machinesConfirmed')
-    if (machinesConfirmed === 'true') {
-      setMachinesConfirmed(true)
-      const savedMachines = JSON.parse(localStorage.getItem('operatorMachines') || '[]')
-      setSelectedMachines(savedMachines)
+      
+      setUser(userData)
+      
+        // Check if password change is required
+        if (userData.password_change_required) {
+          setShowPasswordChangeModal(true)
+        }
+      
+      // Check if machines were confirmed in this session
+      const machinesConfirmed = sessionStorage.getItem('machinesConfirmed')
+      if (machinesConfirmed === 'true') {
+        setMachinesConfirmed(true)
+        const savedMachines = JSON.parse(localStorage.getItem('operatorMachines') || '[]')
+        setSelectedMachines(savedMachines)
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      router.push('/login')
     }
   }, [router])
 
@@ -407,36 +423,74 @@ export default function OperatorDashboard() {
             onPasswordChanged={handlePasswordChanged}
           />
         )}
+
+        {/* Change PIN Modal */}
+        {showChangePinModal && (
+          <ChangePinModal 
+            user={user} 
+            onClose={() => setShowChangePinModal(false)}
+            onSuccess={() => {
+              setShowChangePinModal(false);
+              alert('PIN changed successfully! Please use your new PIN on next login.');
+            }}
+          />
+        )}
       
       {/* Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Operator Dashboard</h1>
-              <p className="text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center py-3 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3 w-2/5">
+              <button 
+                onClick={() => {
+                  try {
+                    const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+                    const parsed = saved ? JSON.parse(saved) : null;
+                    const rawRole = (parsed?.role || user?.role || '').toString();
+                    const role = rawRole.trim().toLowerCase();
+                    const allowed = ['admin','manager','operator'];
+                    if (allowed.includes(role)) {
+                      router.push(`/dashboard/${role}`);
+                    } else if (role.includes('admin')) {
+                      router.push('/dashboard/admin');
+                    } else if (role.includes('manager')) {
+                      router.push('/dashboard/manager');
+                    } else if (role.includes('operator') || role.includes('worker')) {
+                      router.push('/dashboard/operator');
+                    } else {
+                      router.push('/login');
+                    }
+                  } catch (e) {
+                    router.push('/login');
+                  }
+                }}
+                className="hover:opacity-80 transition-opacity flex-shrink-0 w-28 h-10 sm:w-40 sm:h-12 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                title="Home"
+              >
+                <img 
+                  src="/logo.png" 
+                  alt="JD Cutting Tools" 
+                  className="w-full h-full object-contain"
+                />
+              </button>
+              <div className="hidden sm:block">
+                <p className="text-sm text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+                <p className="text-xs text-gray-500">Operator Dashboard</p>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/dashboard/settings')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                ⚙️ Settings
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                Logout
-              </button>
+            <div className="w-3/5 flex justify-end">
+              <UserMenu 
+                user={user} 
+                onChangePinClick={() => setShowChangePinModal(true)}
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-8">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
               <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -798,6 +852,19 @@ export default function OperatorDashboard() {
         onSuccess={handleSplitSuccess}
         user={user}
       />
+
+      {/* Machine Settings Modal */}
+      {showMachineSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-2 p-4 relative animate-fadein max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowMachineSettings(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            >&times;</button>
+            <MachineSettingsTable />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

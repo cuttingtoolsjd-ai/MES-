@@ -62,16 +62,20 @@ export default function Login() {
           .update({ last_login: new Date().toISOString() })
           .eq('id', data.id)
         
-        // Store user info in localStorage for demo purposes
-        // In a real app, you'd want to use proper session management
+        // Store user info in both localStorage and sessionStorage for persistence
+        // This ensures the session survives browser refreshes
         const normalizedRole = (data.role || '').toLowerCase()
-        localStorage.setItem('currentUser', JSON.stringify({
+        const userPayload = {
           id: data.id,
           username: data.username,
           role: normalizedRole,
           assigned_machine: data.assigned_machine,
           password_change_required: data.password_change_required || false
-        }))
+        }
+        
+        localStorage.setItem('currentUser', JSON.stringify(userPayload))
+        sessionStorage.setItem('currentUser', JSON.stringify(userPayload))
+        sessionStorage.setItem('authTimestamp', new Date().toISOString())
 
         // Redirect to role-specific dashboard after successful login
         setTimeout(() => {
@@ -87,156 +91,91 @@ export default function Login() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      backgroundColor: '#f5f5f5',
-      fontFamily: 'Arial, sans-serif'
+    <div className="min-h-screen flex items-center justify-center px-3 sm:px-4 lg:px-8 py-6" style={{
+      background: 'linear-gradient(135deg, #fdf9f9ff 0%, #b57878ff 100%)'
     }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '2rem',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: '#333' }}>
-          🏭 Korv Factory Login
-        </h1>
-        
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Username:
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '1rem'
-              }}
-              placeholder="Enter your username"
+      <div className="w-full max-w-sm">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 sm:p-10">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo.png" 
+              alt="JD Cutting Tools" 
+              className="h-16 w-16 sm:h-20 sm:w-20 object-contain"
             />
           </div>
+
+          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
+            Login
+          </h2>
           
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              PIN:
-            </label>
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '1rem'
-              }}
-              placeholder="Enter your PIN"
-            />
-          </div>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Enter username"
+                style={{
+                  background: 'white',
+                  color: '#333'
+                }}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                id="pin"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Enter password"
+                style={{
+                  background: 'white',
+                  color: '#333'
+                }}
+              />
+            </div>
           
           {error && (
-            <div style={{
-              color: 'red',
-              backgroundColor: '#ffebee',
-              padding: '0.75rem',
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              border: '1px solid #ffcdd2'
-            }}>
+            <div className="text-red-600 text-xs sm:text-sm text-center">
               {error}
             </div>
           )}
           
           {success && (
-            <div style={{
-              color: 'green',
-              backgroundColor: '#e8f5e8',
-              padding: '0.75rem',
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              border: '1px solid #c8e6c9'
-            }}>
+            <div className="text-green-600 text-xs sm:text-sm text-center">
               {success}
-            </div>
-          )}
-
-          {connectionTest && (
-            <div style={{
-              color: connectionTest.includes('✅') ? 'green' : 'red',
-              backgroundColor: connectionTest.includes('✅') ? '#e8f5e8' : '#ffebee',
-              padding: '0.75rem',
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              border: connectionTest.includes('✅') ? '1px solid #c8e6c9' : '1px solid #ffcdd2',
-              fontSize: '0.9rem'
-            }}>
-              <strong>Connection Test:</strong> {connectionTest}
             </div>
           )}
           
           <button
             type="submit"
             disabled={loading}
+            className="w-full px-6 py-9 rounded-xl font-semibold text-lg sm:text-xl shadow-md transition-all duration-300 hover:shadow-lg active:scale-[.98] disabled:opacity-70"
             style={{
-              width: '100%',
-              padding: '0.75rem',
-              backgroundColor: loading ? '#ccc' : '#0070f3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background-color 0.2s'
+              background: loading ? '#a37978ff' : '#fc2525ff',
+              color: 'white'
             }}
+            onMouseEnter={(e) => !loading && (e.target.style.background = '#f21e1ebd')}
+            onMouseLeave={(e) => !loading && (e.target.style.background = '#f61a0bff')}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
-        
-        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-          <button
-            onClick={testSupabaseConnection}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              cursor: 'pointer'
-            }}
-          >
-            🔄 Test Connection
-          </button>
-        </div>
-        
-        <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-          <h4 style={{ margin: '0 0 0.5rem 0' }}>Demo Credentials:</h4>
-          <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>• <strong>Anushwa</strong> (admin) - PIN: 000000</p>
-          <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>• <strong>Dhanashree</strong> (manager) - PIN: 000000</p>
-          <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>• <strong>Anil</strong> (operator) - PIN: 000000</p>
-        </div>
-        
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <a href="/" style={{ color: '#0070f3', textDecoration: 'none' }}>
-            ← Back to Home
-          </a>
-        </div>
       </div>
+    </div>
     </div>
   )
 }

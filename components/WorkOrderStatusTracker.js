@@ -80,58 +80,103 @@ export default function WorkOrderStatusTracker({ workOrder, onUpdate, user }) {
 
   // Helper: auto-generate urgent work order on reject
   async function handleRejectWorkOrder() {
+    console.log('🔴 REJECT BUTTON CLICKED!');
     setUpdating(true);
     setQualityError('');
     try {
-      // Generate new work order number with _01 (or increment if already exists)
-      let baseNo = workOrder.work_order_no.replace(/(_\d+)?$/, '');
-      let suffix = 1;
-      let newNo = `${baseNo}_0${suffix}`;
-      let exists = true;
-      while (exists) {
-        const { data: check, error: checkErr } = await supabase
-          .from('work_orders')
-          .select('id')
-          .eq('work_order_no', newNo)
-          .maybeSingle();
-        if (!check) exists = false;
-        else {
-          suffix++;
-          newNo = `${baseNo}_${suffix.toString().padStart(2, '0')}`;
-        }
-      }
-      // Copy all fields except id, status, created_on
-      const { data: origWO } = await supabase
+      // Get the rejected quantity from input or use full quantity
+      const rejectedQty = parseInt(acceptQty) || workOrder.quantity;
+      
+      // Calculate remaining quantity after rejection
+      const remainingQty = workOrder.quantity - rejectedQty;
+      
+      // Create new work order number with _r suffix
+      const newWoNo = `${workOrder.work_order_no}_r`;
+      
+      // Fetch original work order data
+      const { data: origWO, error: fetchErr } = await supabase
         .from('work_orders')
         .select('*')
         .eq('id', workOrder.id)
         .single();
-      if (!origWO) throw new Error('Original work order not found');
-      const urgentWO = { ...origWO };
-      delete urgentWO.id;
-      urgentWO.work_order_no = newNo;
-      urgentWO.status = 'Planning Required';
-      urgentWO.urgency = 'UTMOST';
-      urgentWO.created_on = new Date().toISOString();
-      urgentWO.notes = `[AUTO] Urgent rework for rejected WO ${workOrder.work_order_no}`;
-      // Insert new urgent work order
-      const { error: insErr } = await supabase
+      
+      if (fetchErr || !origWO) {
+        throw new Error('Failed to fetch original work order');
+      }
+      
+      // Create new rejected work order with same details (only use columns that exist)
+      const rejectedWO = {
+        work_order_no: newWoNo,
+        drawing_no: origWO.drawing_no,
+        customer_name: origWO.customer_name,
+        po_number: origWO.po_number,
+        tool_code: origWO.tool_code,
+        tool_description: origWO.tool_description,
+        quantity: rejectedQty,
+        price_per_unit: origWO.price_per_unit,
+        total_price: origWO.total_price,
+        machine: origWO.machine,
+        cycle_time: origWO.cycle_time,
+        korv_per_unit: origWO.korv_per_unit,
+        total_korv: origWO.total_korv,
+        status: 'Planning Required',
+        created_by: origWO.created_by,
+        created_on: new Date().toISOString(),
+        coating_required: origWO.coating_required,
+        coating_type: origWO.coating_type,
+        marking_required: origWO.marking_required,
+        marking_notes: `[REJECTED] From WO ${workOrder.work_order_no}. Reason: ${notes || 'Quality issue'}`
+      };
+      
+      // Insert new rejected work order
+      const { error: insertErr } = await supabase
         .from('work_orders')
-        .insert([urgentWO]);
-      if (insErr) throw insErr;
-      // Optionally, notify stock issue (could be a status/flag)
-      // Mark original as rejected
-      await supabase
-        .from('work_orders')
-        .update({ status: 'Rejected', rejection_reason: notes, rejected_at: new Date().toISOString() })
-        .eq('id', workOrder.id);
+        .insert([rejectedWO]);
+      
+      if (insertErr) {
+        throw new Error('Failed to create rejected work order: ' + insertErr.message);
+      }
+      
+      // Update original work order quantity (only if there's remaining quantity)
+      if (remainingQty > 0) {
+        const { error: updateErr } = await supabase
+          .from('work_orders')
+          .update({ 
+            quantity: remainingQty,
+            status: 'Planning Required' // Reset to planning required
+          })
+          .eq('id', workOrder.id);
+        
+        if (updateErr) {
+          throw new Error('Failed to update original work order: ' + updateErr.message);
+        }
+        
+        alert(`✅ Rejected ${rejectedQty} units. New work order ${newWoNo} created.\nOriginal WO now has ${remainingQty} units.`);
+      } else {
+        // All units rejected - mark original as rejected
+        const { error: updateErr } = await supabase
+          .from('work_orders')
+          .update({ 
+            status: 'Rejected',
+            marking_notes: `Rejected: ${notes || 'Quality issue'}`
+          })
+          .eq('id', workOrder.id);
+        
+        if (updateErr) {
+          throw new Error('Failed to update original work order: ' + updateErr.message);
+        }
+        
+        alert(`✅ All ${rejectedQty} units rejected. New work order ${newWoNo} created.`);
+      }
+      
       setShowQualityActions(false);
       setShowNotesInput(null);
       setNotes('');
-      alert('❌ Work order rejected! Urgent rework created: ' + newNo);
+      setAcceptQty('');
       if (onUpdate) onUpdate();
     } catch (err) {
       setQualityError('Error: ' + (err.message || err));
+      console.error('Reject error:', err);
     } finally {
       setUpdating(false);
     }
@@ -293,7 +338,10 @@ export default function WorkOrderStatusTracker({ workOrder, onUpdate, user }) {
                           onChange={(e) => setNotes(e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
-                        <div className="flex gap-2 items-center">
+                        <div className="text-xs text-gray-600 mb-1">
+                          Total quantity: <span className="font-semibold">{workOrder.quantity}</span> units
+                        </div>
+                        <div className="flex gap-2 items-center flex-wrap">
                           <button
                             onClick={() => handleAcceptWorkOrder(false)}
                             disabled={updating}
@@ -307,7 +355,7 @@ export default function WorkOrderStatusTracker({ workOrder, onUpdate, user }) {
                             max={workOrder.quantity}
                             value={acceptQty}
                             onChange={e => setAcceptQty(e.target.value)}
-                            placeholder="Partial Qty"
+                            placeholder="Enter Qty"
                             className="w-24 px-2 py-1 border rounded text-sm"
                           />
                           <button
@@ -315,10 +363,14 @@ export default function WorkOrderStatusTracker({ workOrder, onUpdate, user }) {
                             disabled={updating || !acceptQty}
                             className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm font-medium disabled:opacity-50"
                           >
-                            {updating ? 'Accepting...' : 'Accept (Partial)'}
+                            {updating ? 'Accepting...' : 'Accept Partial'}
                           </button>
                           <button
-                            onClick={handleRejectWorkOrder}
+                            onClick={(e) => {
+                              console.log('🔴 Button element clicked, event:', e);
+                              e.stopPropagation();
+                              handleRejectWorkOrder();
+                            }}
                             disabled={updating}
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium disabled:opacity-50"
                           >
@@ -334,6 +386,9 @@ export default function WorkOrderStatusTracker({ workOrder, onUpdate, user }) {
                           >
                             Cancel
                           </button>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          💡 Enter quantity to accept/reject partial. Leave empty to reject all.
                         </div>
                         {qualityError && <div className="text-xs text-red-600">{qualityError}</div>}
                       </div>

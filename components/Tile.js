@@ -32,30 +32,30 @@ export default function Tile({
 
   const content = (
     <div
-      className={`tile rounded-2xl border border-black bg-white ${sizeMap[size] || sizeMap.standard} shadow-subtle hover:shadow-lg hover:scale-[1.03] transition-all duration-200 relative overflow-hidden aspect-square w-full h-full flex flex-col ${disabled ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}
+      className={`tile rounded-xl sm:rounded-2xl border border-black bg-white ${sizeMap[size] || sizeMap.standard} shadow-subtle hover:shadow-lg hover:scale-[1.02] sm:hover:scale-[1.03] transition-all duration-200 relative overflow-hidden w-full h-full flex flex-col min-h-[140px] sm:min-h-[160px] ${disabled ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}
       onClick={onClick}
       aria-label={title}
     >
       <div className="relative z-10 flex items-start justify-between mb-2">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1 sm:gap-2">
           {IconComponent ? (
-            <IconComponent className="lucide w-8 h-8" />
+            <IconComponent className="lucide w-6 h-6 sm:w-8 sm:h-8" />
           ) : icon ? (
-            <span className="lucide w-8 h-8 text-black">{icon}</span>
+            <span className="lucide w-6 h-6 sm:w-8 sm:h-8 text-black text-lg sm:text-2xl">{icon}</span>
           ) : null}
-          <h3 className="text-base sm:text-lg font-bold text-black font-sans">{title}</h3>
+          <h3 className="text-sm sm:text-base lg:text-lg font-bold text-black font-sans leading-tight">{title}</h3>
         </div>
         {typeof kpi !== 'undefined' && (
-          <div className="text-2xl sm:text-3xl font-black text-black bg-white px-3 py-1 rounded-lg shadow-subtle border border-silver">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-black bg-white px-2 py-1 sm:px-3 rounded-lg shadow-subtle border border-silver">
             {kpi}
           </div>
         )}
       </div>
       {description && (
-        <p className="relative z-10 text-gray-400 mt-auto text-xs sm:text-sm leading-relaxed font-medium font-sans">{description}</p>
+        <p className="relative z-10 text-gray-400 mt-auto text-xs leading-snug sm:leading-relaxed font-medium font-sans line-clamp-2">{description}</p>
       )}
-      <div className="relative z-10 text-xs sm:text-sm mt-2 text-black group-hover:underline flex items-center gap-1 font-semibold font-sans">
-        Open <ArrowRight className="lucide w-4 h-4 group-hover:fill-black transition-all" aria-hidden />
+      <div className="relative z-10 text-xs mt-2 text-black group-hover:underline flex items-center gap-1 font-semibold font-sans">
+        Open <ArrowRight className="lucide w-3 h-3 sm:w-4 sm:h-4 group-hover:fill-black transition-all" aria-hidden />
       </div>
     </div>
   )

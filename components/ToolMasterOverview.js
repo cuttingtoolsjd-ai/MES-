@@ -413,17 +413,19 @@ export default function ToolMasterOverview({ user, onMakeWorkorder }) {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Calculated Korv per Unit (read-only)</label>
-                  <input
-                    type="number"
-                    value={calculateKorvPerUnit(
-                      createForm.cnc_time ? parseFloat(createForm.cnc_time) : 0,
-                      createForm.cylindrical_time ? parseFloat(createForm.cylindrical_time) : 0,
-                      createForm.tc_time ? parseFloat(createForm.tc_time) : 0
-                    )}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
+                  <label className="block text-sm font-medium text-blue-700 mb-1">📊 Final KORV/Unit (Auto-calculated)</label>
+                  <div className="w-full px-4 py-3 border-2 border-blue-300 rounded-md bg-blue-50">
+                    <div className="text-2xl font-bold text-blue-900">
+                      {(() => {
+                        const cnc = createForm.cnc_time ? parseFloat(createForm.cnc_time) : 0;
+                        const cyl = createForm.cylindrical_time ? parseFloat(createForm.cylindrical_time) : 0;
+                        const tc = createForm.tc_time ? parseFloat(createForm.tc_time) : 0;
+                        const totalTime = cnc + cyl + tc;
+                        const finalKorv = totalTime / 5;
+                        return finalKorv.toFixed(2);
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -588,17 +590,19 @@ export default function ToolMasterOverview({ user, onMakeWorkorder }) {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Calculated Korv per Unit (read-only)</label>
-                  <input
-                    type="number"
-                    value={calculateKorvPerUnit(
-                      editForm.cnc_time ? parseFloat(editForm.cnc_time) : 0,
-                      editForm.cylindrical_time ? parseFloat(editForm.cylindrical_time) : 0,
-                      editForm.tc_time ? parseFloat(editForm.tc_time) : 0
-                    )}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
+                  <label className="block text-sm font-medium text-blue-700 mb-1">📊 Final KORV/Unit (Auto-calculated)</label>
+                  <div className="w-full px-4 py-3 border-2 border-blue-300 rounded-md bg-blue-50">
+                    <div className="text-2xl font-bold text-blue-900">
+                      {(() => {
+                        const cnc = editForm.cnc_time ? parseFloat(editForm.cnc_time) : 0;
+                        const cyl = editForm.cylindrical_time ? parseFloat(editForm.cylindrical_time) : 0;
+                        const tc = editForm.tc_time ? parseFloat(editForm.tc_time) : 0;
+                        const totalTime = cnc + cyl + tc;
+                        const finalKorv = totalTime / 5;
+                        return finalKorv.toFixed(2);
+                      })()}
+                    </div>
+                  </div>
                 </div>
                 {user?.role === 'manager' && editForm.tool_description !== editTool.tool_description && (
                   <div className="md:col-span-2">
@@ -720,7 +724,7 @@ export default function ToolMasterOverview({ user, onMakeWorkorder }) {
               <tr>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-r border-gray-300">Tool Code</th>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-r border-gray-300">Description</th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-r border-gray-300">Korv Value</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-r border-gray-300">Final KORV/Unit</th>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
               </tr>
             </thead>
@@ -729,23 +733,39 @@ export default function ToolMasterOverview({ user, onMakeWorkorder }) {
                 <tr><td colSpan={4} className="text-center py-2">Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={4} className="text-center py-2 text-gray-500">No tools found</td></tr>
-              ) : filtered.map(tool => (
-                <tr key={tool.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 whitespace-nowrap align-top border-b border-r border-gray-300">{tool.tool_code}</td>
-                  <td className="px-4 py-2 align-top border-b border-r border-gray-300" style={{ whiteSpace: 'pre-line', wordBreak: 'break-word' }}>{tool.tool_description}</td>
-                  <td className="px-4 py-2 whitespace-nowrap align-top border-b border-r border-gray-300">{tool.standard_korv}</td>
-                  <td className="px-4 py-2 flex gap-2 align-top border-b"> 
-                    <button
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs"
-                      onClick={() => openEditModal(tool)}
-                    >Edit</button>
-                    <button
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
-                      onClick={() => openDeleteModal(tool)}
-                    >Delete</button>
-                  </td>
-                </tr>
-              ))}
+              ) : filtered.map(tool => {
+                // Calculate Final KORV from operation times
+                const cncTime = Number(tool.cnc_time || 0);
+                const cylTime = Number(tool.cylindrical_time || 0);
+                const tcTime = Number(tool.tc_time || tool.tc_estimated || 0);
+                const totalTime = cncTime + cylTime + tcTime;
+                const finalKorvPerUnit = totalTime / 5; // 1 KORV = 5 minutes
+                
+                return (
+                  <tr key={tool.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 whitespace-nowrap align-top border-b border-r border-gray-300">{tool.tool_code}</td>
+                    <td className="px-4 py-2 align-top border-b border-r border-gray-300" style={{ whiteSpace: 'pre-line', wordBreak: 'break-word' }}>{tool.tool_description}</td>
+                    <td className="px-4 py-2 whitespace-nowrap align-top border-b border-r border-gray-300">
+                      <div className={`font-bold text-lg ${finalKorvPerUnit > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
+                        {finalKorvPerUnit.toFixed(2)}
+                      </div>
+                      {finalKorvPerUnit === 0 && (
+                        <div className="text-xs text-amber-600 mt-1">⚠️ No times set</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 flex gap-2 align-top border-b"> 
+                      <button
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs"
+                        onClick={() => openEditModal(tool)}
+                      >Edit</button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                        onClick={() => openDeleteModal(tool)}
+                      >Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

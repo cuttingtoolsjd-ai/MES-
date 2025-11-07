@@ -15,17 +15,22 @@ import StockTab from '../../components/StockTab'
 import ToolMasterOverview from '../../components/ToolMasterOverview'
 import WorkOrderOverview from '../../components/WorkOrderOverview'
 import ForcePasswordChangeModal from '../../components/ForcePasswordChangeModal'
+import ChangePinModal from '../../components/ChangePinModal'
+import MachineSettingsTable from '../../components/MachineSettingsTable'
 import PlanningKanban from '../../components/PlanningKanban'
+import UserMenu from '../../components/UserMenu'
 
 export default function ManagerDashboard() {
   const [user, setUser] = useState(null)
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false)
+  const [showChangePinModal, setShowChangePinModal] = useState(false)
+  const [showMachineSettings, setShowMachineSettings] = useState(false)
   const [tabIdx, setTabIdx] = useState(null) // null = show tiles, number = show tab content
   // Planner controls
   const SHIFT_OPTIONS = [
-    { value: 'first', label: 'First Shift' },
-    { value: 'second', label: 'Second Shift' },
-    { value: 'night', label: 'Night Shift' },
+     { value: 1, label: 'Shift 1 (7:00 AM - 3:00 PM)' },
+     { value: 2, label: 'Shift 2 (3:00 PM - 11:00 PM)' },
+     { value: 3, label: 'Shift 3 (11:00 PM - 7:00 AM)' },
   ]
   const getTodayStr = () => new Date().toISOString().slice(0, 10)
   const [planDay, setPlanDay] = useState(getTodayStr())
@@ -59,6 +64,7 @@ export default function ManagerDashboard() {
   const [stockMessage, setStockMessage] = useState('')
   const [kpis, setKpis] = useState({ tools: 0, workOrders: 0, stockItems: 0 })
   const [maintenanceMachines, setMaintenanceMachines] = useState([])
+  const [showWOOverview, setShowWOOverview] = useState(false)
 
   const tileDefs = [
     {
@@ -246,29 +252,41 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     // Check if user is logged in and has manager role
-    const currentUser = localStorage.getItem('currentUser')
+    // Try multiple sources for auth data (localStorage → sessionStorage)
+    let currentUser = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser')
+    
     if (!currentUser) {
       router.push('/login')
       return
     }
-    const parsed = JSON.parse(currentUser)
-    const normalizedRole = String(parsed?.role || '').toLowerCase()
-    const userData = { ...parsed, role: normalizedRole }
-    localStorage.setItem('currentUser', JSON.stringify(userData))
-    if (userData.role !== 'manager') {
-      router.push(`/dashboard/${userData.role}`)
-      return
-    }
-    setUser(userData)
     
-    // Check if password change is required
-    if (userData.password_change_required) {
-      setShowPasswordChangeModal(true)
+    try {
+      const parsed = JSON.parse(currentUser)
+      const normalizedRole = String(parsed?.role || '').toLowerCase()
+      const userData = { ...parsed, role: normalizedRole }
+      
+      // Ensure both storage methods have the latest data
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+      sessionStorage.setItem('currentUser', JSON.stringify(userData))
+      
+      if (userData.role !== 'manager') {
+        router.push(`/dashboard/${userData.role}`)
+        return
+      }
+      setUser(userData)
+      
+      // Check if password change is required
+      if (userData.password_change_required) {
+        setShowPasswordChangeModal(true)
+      }
+      
+      fetchWorkOrders()
+      fetchStockItems()
+      fetchKpis()
+    } catch (error) {
+      console.error('Auth error:', error)
+      router.push('/login')
     }
-    
-    fetchWorkOrders()
-    fetchStockItems()
-    fetchKpis()
   }, [router])
 
   async function fetchKpis() {
@@ -520,6 +538,22 @@ export default function ManagerDashboard() {
               🔄 Refresh List
             </button>
           </div>
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowWOOverview((v) => !v)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow-sm transition-colors"
+            >
+              {showWOOverview ? '✖ Hide Work Order Overview' : '📋 Work Order Overview'}
+            </button>
+          </div>
+          {showWOOverview && (
+            <div className="mt-4">
+              <div className="bg-white rounded-lg shadow p-4">
+                <WorkOrderOverview user={user} />
+              </div>
+            </div>
+          )}
         </div>
       )
     },
@@ -552,13 +586,18 @@ export default function ManagerDashboard() {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Shift</label>
-              <select value={planShift} onChange={(e)=>setPlanShift(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-sm">
+              <select value={planShift} onChange={(e)=>setPlanShift(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm">
                 {SHIFT_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
             <div className="text-xs text-gray-400 ml-4">(Browse different days and shifts to plan work)</div>
+          </div>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>ℹ️ Note:</strong> Shift 1 is also used as General shift (9:30 AM - 6:00 PM)
+            </p>
           </div>
           <FactoryLayout selectedDay={planDay} selectedShift={planShift} />
         </div>
@@ -603,45 +642,83 @@ export default function ManagerDashboard() {
           onPasswordChanged={handlePasswordChanged}
         />
       )}
+
+      {/* Change PIN Modal */}
+      {showChangePinModal && (
+        <ChangePinModal 
+          user={user} 
+          onClose={() => setShowChangePinModal(false)}
+          onSuccess={() => {
+            setShowChangePinModal(false);
+            alert('PIN changed successfully! Please use your new PIN on next login.');
+          }}
+        />
+      )}
       
       {/* Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-              <p className="text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center py-3 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3 w-2/5">
+              <button 
+                onClick={() => {
+                  try {
+                    const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+                    const parsed = saved ? JSON.parse(saved) : null;
+                    const rawRole = (parsed?.role || user?.role || '').toString();
+                    const role = rawRole.trim().toLowerCase();
+                    const allowed = ['admin','manager','operator'];
+                    if (allowed.includes(role)) {
+                      router.push(`/dashboard/${role}`);
+                    } else if (role.includes('admin')) {
+                      router.push('/dashboard/admin');
+                    } else if (role.includes('manager')) {
+                      router.push('/dashboard/manager');
+                    } else if (role.includes('operator') || role.includes('worker')) {
+                      router.push('/dashboard/operator');
+                    } else {
+                      router.push('/login');
+                    }
+                  } catch (e) {
+                    router.push('/login');
+                  }
+                }}
+                className="hover:opacity-80 transition-opacity flex-shrink-0 w-28 h-10 sm:w-40 sm:h-12 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                title="Home"
+              >
+                <img 
+                  src="/logo.png" 
+                  alt="JD Cutting Tools" 
+                  className="w-full h-full object-contain"
+                />
+              </button>
+              <div className="hidden sm:block">
+                <p className="text-sm text-gray-600">Welcome back, <span className="font-semibold">{user.username}</span></p>
+                <p className="text-xs text-gray-500">Manager Dashboard</p>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/dashboard/settings')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2"
-              >
-                ⚙️ Settings
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                Logout
-              </button>
+            <div className="w-3/5 flex justify-end">
+              <UserMenu 
+                user={user} 
+                onChangePinClick={() => setShowChangePinModal(true)}
+              />
             </div>
           </div>
         </div>
       </div>
       {maintenanceMachines.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 px-4 py-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="font-semibold">Maintenance alert</div>
-              <div className="text-sm">{maintenanceMachines.length} machine(s) under maintenance: {maintenanceMachines.join(', ')}</div>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-2 sm:mt-4">
+          <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 px-3 sm:px-4 py-2 sm:py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+              <div className="font-semibold text-sm sm:text-base">Maintenance alert</div>
+              <div className="text-xs sm:text-sm">{maintenanceMachines.length} machine(s) under maintenance: {maintenanceMachines.join(', ')}</div>
             </div>
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         {tabIdx === null ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-8">
             {tileDefs.map((tile, idx) => (
               <Tile
                 key={tile.title}
@@ -667,6 +744,19 @@ export default function ManagerDashboard() {
             </button>
             <div className="pt-14 px-2 sm:px-6">
               <Tabs tabs={tabs} initial={0} active={tabIdx} onChange={setTabIdx} />
+            </div>
+          </div>
+        )}
+
+        {/* Machine Settings Modal */}
+        {showMachineSettings && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-2 p-4 relative animate-fadein max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowMachineSettings(false)}
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >&times;</button>
+              <MachineSettingsTable />
             </div>
           </div>
         )}

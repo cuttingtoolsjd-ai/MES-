@@ -180,10 +180,9 @@ export default function WorkOrderOverview({ user }) {
               {orders.map(order => (
                 <tr 
                   key={order.id} 
-                  className={`hover:bg-blue-50 cursor-pointer ${
+                  className={`hover:bg-blue-50 ${
                     order.isActive ? 'bg-blue-50' : ''
-                  }`} 
-                  onClick={() => setSelectedOrder(order)}
+                  }`}
                 >
                   <td className="px-3 py-2 font-semibold text-blue-700">{order.work_order_no}</td>
                   <td className="px-3 py-2 text-gray-600">{order.tool_code}</td>
@@ -241,7 +240,12 @@ export default function WorkOrderOverview({ user }) {
                   <td className="px-3 py-2 text-center">
                     <div className="flex gap-1 justify-center">
                       <button 
-                        onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          console.log('View button clicked, order:', order.work_order_no);
+                          setTimeout(() => setSelectedOrder(order), 0);
+                        }}
                         className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                       >
                         View
