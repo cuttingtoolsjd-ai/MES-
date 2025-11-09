@@ -28,7 +28,7 @@ export default function EnquiryBoard({ user }) {
     e.preventDefault()
     setMessage('')
     const payload = {
-      customer_id: form.customer_id ? Number(form.customer_id) : null,
+      customer_id: form.customer_id || null,
       title: form.title,
       details: form.details,
       marketing_user_id: user?.id || null,
@@ -41,7 +41,7 @@ export default function EnquiryBoard({ user }) {
   }
 
   async function addAction(enquiry_id, role, action, notes) {
-    const { error } = await supabase.from('enquiry_actions').insert([{ enquiry_id, actor_user_id: user?.id || null, role, action, notes }])
+  const { error } = await supabase.from('enquiry_actions').insert([{ enquiry_id, actor_user_id: user?.id || null, role, action, notes }])
     if (error) setMessage('Error: ' + error.message); else { setMessage('✅ Action recorded'); fetchEnquiries() }
   }
 

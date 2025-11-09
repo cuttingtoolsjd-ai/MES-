@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS customers (
   contact_person TEXT,
   contact_email TEXT,
   contact_phone TEXT,
-  assigned_sales_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  assigned_sales_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   last_order_date DATE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -29,11 +29,11 @@ CREATE TABLE IF NOT EXISTS customer_inactivity_logs (
   customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   detected_on TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   days_since_last_order INT NOT NULL,
-  sales_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  sales_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   reason_logged TEXT, -- optional manual reason
   resolved BOOLEAN DEFAULT FALSE,
   resolved_on TIMESTAMPTZ,
-  resolved_by BIGINT REFERENCES users(id) ON DELETE SET NULL
+  resolved_by UUID REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_customer_inactivity_customer ON customer_inactivity_logs(customer_id);
 CREATE INDEX IF NOT EXISTS idx_customer_inactivity_resolved ON customer_inactivity_logs(resolved);
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS enquiries (
   enquiry_ref TEXT UNIQUE,
   title TEXT NOT NULL,
   details TEXT,
-  marketing_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  marketing_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'open', -- open | awaiting-quotation | awaiting-geometry | closed
   need_sales_help BOOLEAN DEFAULT FALSE,
   need_tech_help BOOLEAN DEFAULT FALSE,
@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_enquiries_status ON enquiries(status);
 CREATE TABLE IF NOT EXISTS enquiry_actions (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   enquiry_id BIGINT NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
-  actor_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   role TEXT, -- 'sales' | 'tech' | 'marketing'
   action TEXT, -- 'quotation-provided' | 'geometry-provided' | 'closed' | 'note'
   notes TEXT,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
   order_date DATE NOT NULL DEFAULT CURRENT_DATE,
   expected_delivery DATE,
-  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   total_price NUMERIC,
   total_korv NUMERIC,
   status TEXT DEFAULT 'created', -- created | in-progress | completed | cancelled

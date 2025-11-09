@@ -27,7 +27,7 @@ export default function CustomerTable({ user }) {
   async function onSubmit(e) {
     e.preventDefault()
     setMessage('')
-    const { error } = await supabase.from('customers').insert([{ ...form, assigned_sales_user_id: form.assigned_sales_user_id ? Number(form.assigned_sales_user_id) : null }])
+  const { error } = await supabase.from('customers').insert([{ ...form, assigned_sales_user_id: form.assigned_sales_user_id || null }])
     if (error) setMessage('Error: ' + error.message)
     else { setMessage('✅ Customer added'); setForm({ name: '', code: '', industry: '', country: '', city: '', address: '', contact_person: '', contact_email: '', contact_phone: '', assigned_sales_user_id: '' }); fetchCustomers() }
   }

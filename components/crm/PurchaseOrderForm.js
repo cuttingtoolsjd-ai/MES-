@@ -17,7 +17,7 @@ export default function PurchaseOrderForm({ user }) {
     try {
       // 1) Create PO
       const { data: poData, error: poErr } = await supabase.from('purchase_orders').insert([{
-        customer_id: po.customer_id ? Number(po.customer_id) : null,
+        customer_id: po.customer_id || null,
         po_number: po.po_number,
         order_date: po.order_date || null,
         expected_delivery: po.expected_delivery || null,
