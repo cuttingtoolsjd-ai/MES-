@@ -13,6 +13,7 @@ import ToolMasterOverview from '../../components/ToolMasterOverview'
 import CustomerTable from '../../components/crm/CustomerTable'
 import EnquiryBoard from '../../components/crm/EnquiryBoard'
 import PurchaseOrderForm from '../../components/crm/PurchaseOrderForm'
+import PurchaseOrdersTable from '../../components/purchase/PurchaseOrdersTable'
 import FactoryLayout from '../../components/FactoryLayout2'
 import WorkOrderTransfersTab from '../../components/WorkOrderTransfersTab'
 import CompletedWorkOrdersTab from '../../components/CompletedWorkOrdersTab'
@@ -123,6 +124,14 @@ export default function AdminDashboard() {
       accent: 'teal',
       kpi: '',
       tab: 7,
+    },
+    {
+      title: 'Purchase Orders',
+      description: 'Create purchase orders and generate work orders',
+      icon: '🧾',
+      accent: 'cyan',
+      kpi: '',
+      tabLabel: 'Purchase Orders',
     },
   ].filter(Boolean) : []
 
@@ -1095,7 +1104,17 @@ export default function AdminDashboard() {
           <CustomerTable user={user} />
           <EnquiryBoard user={user} />
         </div>
+      </div>
+    )
+  })
+
+  // Append dedicated Purchase Orders tab at the end
+  tabs.push({
+    label: 'Purchase Orders',
+    content: (
+      <div className="space-y-6">
         <PurchaseOrderForm user={user} />
+        <PurchaseOrdersTable />
       </div>
     )
   })
@@ -1219,7 +1238,14 @@ export default function AdminDashboard() {
                 icon={tile.icon}
                 accent={tile.accent}
                 kpi={tile.kpi}
-                onClick={() => handleTileClick(tile.tab)}
+                onClick={() => {
+                  if (typeof tile.tab === 'number') {
+                    handleTileClick(tile.tab)
+                  } else if (tile.tabLabel) {
+                    const idx = tabs.findIndex(t => t.label === tile.tabLabel)
+                    if (idx !== -1) handleTileClick(idx)
+                  }
+                }}
                 size="standard"
               />
             ))}
