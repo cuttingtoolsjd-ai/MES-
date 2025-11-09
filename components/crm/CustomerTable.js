@@ -49,7 +49,9 @@ export default function CustomerTable({ user }) {
 
   function buildWhatsAppUrl(phone, customer) {
     const d = daysSince(customer.last_order_date)
-    const text = `Hey! ${customer.name} has not placed an order in the past ${d >= 30 ? '1 month' : d + ' days'}. Would you like to reassign this customer? Note: this may affect the next appraisal cycle. If you want to complain, please do so within one week.`
+    const recipient = customer.contact_person ? customer.contact_person : 'there'
+    const period = d >= 30 ? '1 month' : `${d} days`
+    const text = `Hi ${recipient}, ${customer.name} has not placed an order in the past ${period}. Would you like to reassign this customer? Note: this may affect the next appraisal cycle. If you want to complain, please do so within one week.`
     const cleaned = (phone || '').replace(/[^0-9]/g, '')
     return `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`
   }
@@ -121,7 +123,7 @@ export default function CustomerTable({ user }) {
         <input name="country" value={form.country} onChange={onChange} placeholder="Country" className="border rounded px-2 py-1" />
         <input name="city" value={form.city} onChange={onChange} placeholder="City" className="border rounded px-2 py-1" />
         <input name="address" value={form.address} onChange={onChange} placeholder="Address" className="border rounded px-2 py-1" />
-        <input name="contact_person" value={form.contact_person} onChange={onChange} placeholder="Contact Person" className="border rounded px-2 py-1" />
+        <input name="contact_person" value={form.contact_person} onChange={onChange} placeholder="Contact Person" className="border rounded px-2 py-1" required />
         <input name="contact_email" type="email" value={form.contact_email} onChange={onChange} placeholder="Email" className="border rounded px-2 py-1" />
         <input name="contact_phone" value={form.contact_phone} onChange={onChange} placeholder="Phone" className="border rounded px-2 py-1" />
         <input name="assigned_sales_user_id" value={form.assigned_sales_user_id} onChange={onChange} placeholder="Assigned Sales (user id)" className="border rounded px-2 py-1" />
