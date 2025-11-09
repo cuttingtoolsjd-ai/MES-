@@ -10,6 +10,9 @@ import WorkOrderOverview from '../../components/WorkOrderOverview'
 import StockTable from '../../components/StockTable'
 import StockTab from '../../components/StockTab'
 import ToolMasterOverview from '../../components/ToolMasterOverview'
+import CustomerTable from '../../components/crm/CustomerTable'
+import EnquiryBoard from '../../components/crm/EnquiryBoard'
+import PurchaseOrderForm from '../../components/crm/PurchaseOrderForm'
 import FactoryLayout from '../../components/FactoryLayout2'
 import WorkOrderTransfersTab from '../../components/WorkOrderTransfersTab'
 import CompletedWorkOrdersTab from '../../components/CompletedWorkOrdersTab'
@@ -104,6 +107,14 @@ export default function AdminDashboard() {
       accent: 'yellow',
       kpi: '',
       tab: 6,
+    },
+    {
+      title: 'CRM',
+      description: 'Customers, enquiries, purchase orders',
+      icon: '🤝',
+      accent: 'indigo',
+      kpi: '',
+      tab: 8,
     },
     (user.role === 'admin' || user.role === 'manager') && {
       title: 'Dispatch',
@@ -1074,6 +1085,20 @@ export default function AdminDashboard() {
       content: <CompletedWorkOrdersTab />
     }
   ].filter(Boolean)
+
+  // Inject CRM Tab at index 8
+  tabs.splice(8, 0, {
+    label: 'CRM',
+    content: (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CustomerTable user={user} />
+          <EnquiryBoard user={user} />
+        </div>
+        <PurchaseOrderForm user={user} />
+      </div>
+    )
+  })
 
   // Find the Factory Planning tab and inject the button/modal
   const factoryPlanningIdx = tabs.findIndex(tab => tab.label === 'Factory Planning');
