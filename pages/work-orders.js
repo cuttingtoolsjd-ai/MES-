@@ -168,17 +168,44 @@ export default function WorkOrders() {
       if (isREWorkOrder && newWorkOrder.cnc_time) {
         workOrderData.cycle_time = parseFloat(newWorkOrder.cnc_time)
         
-        // Also update tool master with CNC time for future reference
+        // Check if tool exists in tool master, if not create it
         const cncTimeValue = parseFloat(newWorkOrder.cnc_time)
-        const { error: toolMasterError } = await supabase
+        const { data: existingTool } = await supabase
           .from('tool_master')
-          .update({ cnc_time: cncTimeValue })
+          .select('tool_code')
           .eq('tool_code', newWorkOrder.tool_code)
+          .single()
         
-        if (toolMasterError) {
-          console.error('Warning: Could not update tool master with CNC time:', toolMasterError)
+        if (existingTool) {
+          // Tool exists - update it with CNC time
+          const { error: toolMasterError } = await supabase
+            .from('tool_master')
+            .update({ cnc_time: cncTimeValue })
+            .eq('tool_code', newWorkOrder.tool_code)
+          
+          if (toolMasterError) {
+            console.error('Warning: Could not update tool master with CNC time:', toolMasterError)
+          } else {
+            console.log('✅ Updated tool master with CNC time:', cncTimeValue)
+          }
         } else {
-          console.log('✅ Updated tool master with CNC time:', cncTimeValue)
+          // Tool doesn't exist - create it in tool master
+          const { error: toolMasterError } = await supabase
+            .from('tool_master')
+            .insert([{
+              tool_code: newWorkOrder.tool_code,
+              tool_description: newWorkOrder.tool_description,
+              cnc_time: cncTimeValue,
+              cylindrical_time: 0,
+              tc_time: 0,
+              organisational_korv: 0
+            }])
+          
+          if (toolMasterError) {
+            console.error('Warning: Could not create tool in tool master:', toolMasterError)
+          } else {
+            console.log('✅ Created new tool in tool master with CNC time:', cncTimeValue)
+          }
         }
       }
       
