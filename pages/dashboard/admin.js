@@ -11,6 +11,7 @@ import StockTable from '../../components/StockTable'
 import StockTab from '../../components/StockTab'
 import ToolMasterOverview from '../../components/ToolMasterOverview'
 import CustomerTable from '../../components/crm/CustomerTable'
+// TODO: Integrate Opportunities pipeline & chat dock in future steps
 import EnquiryBoard from '../../components/crm/EnquiryBoard'
 import PurchaseOrderForm from '../../components/crm/PurchaseOrderForm'
 import PurchaseOrdersTable from '../../components/purchase/PurchaseOrdersTable'
