@@ -144,8 +144,12 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const t = toolMap.get(w.tool_code) || {};
       const qty = Number(w.quantity || 0);
       
+      // Check if work order has korv_per_unit (for RE work orders)
+      const hasWorkOrderKorv = w.korv_per_unit && w.korv_per_unit > 0;
+      
       // Get individual operation times (in minutes)
-      const cncTime = Number(t.cnc_time || 0);
+      // For RE work orders, use cycle_time as CNC time if available
+      const cncTime = hasWorkOrderKorv && w.cycle_time ? Number(w.cycle_time) : Number(t.cnc_time || 0);
       const cylTime = Number(t.cylindrical_time || 0);
       const tcTime = Number(t.tc_time || t.tc_estimated || 0);
       
@@ -153,7 +157,8 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const totalTimePerUnit = cncTime + cylTime + tcTime;
       
       // Convert total time to Final KORV (1 KORV = 5 minutes)
-      const finalKorvPerUnit = totalTimePerUnit / 5;
+      // Use work order's korv_per_unit if available, otherwise calculate from times
+      const finalKorvPerUnit = hasWorkOrderKorv ? Number(w.korv_per_unit) : (totalTimePerUnit / 5);
       const finalKorvTotal = finalKorvPerUnit * qty;
       
       // Also calculate per-operation KORV for tracking

@@ -147,22 +147,31 @@ export default function WorkOrders() {
 
     try {
       const totalPrice = parseFloat(newWorkOrder.quantity) * parseFloat(newWorkOrder.price_per_unit || 0)
+      
+      // Prepare work order data
+      const workOrderData = {
+        work_order_no: newWorkOrder.work_order_no,
+        drawing_no: newWorkOrder.drawing_no,
+        customer_name: newWorkOrder.customer_name,
+        po_number: newWorkOrder.po_number,
+        tool_code: newWorkOrder.tool_code,
+        tool_description: newWorkOrder.tool_description,
+        quantity: parseFloat(newWorkOrder.quantity),
+        price_per_unit: parseFloat(newWorkOrder.price_per_unit || 0),
+        total_price: totalPrice,
+        korv_per_unit: parseFloat(newWorkOrder.korv_per_unit || 0),
+        status: 'Created',
+        created_by: user.username
+      }
+      
+      // If RE work order, also save the CNC time
+      if (isREWorkOrder && newWorkOrder.cnc_time) {
+        workOrderData.cycle_time = parseFloat(newWorkOrder.cnc_time)
+      }
+      
       const { data, error } = await supabase
         .from('work_orders')
-        .insert([{
-          work_order_no: newWorkOrder.work_order_no,
-          drawing_no: newWorkOrder.drawing_no,
-          customer_name: newWorkOrder.customer_name,
-          po_number: newWorkOrder.po_number,
-          tool_code: newWorkOrder.tool_code,
-          tool_description: newWorkOrder.tool_description,
-          quantity: parseFloat(newWorkOrder.quantity),
-          price_per_unit: parseFloat(newWorkOrder.price_per_unit || 0),
-          total_price: totalPrice,
-          korv_per_unit: parseFloat(newWorkOrder.korv_per_unit || 0),
-          status: 'Created',
-          created_by: user.username
-        }])
+        .insert([workOrderData])
         .select()
 
       if (error) {
