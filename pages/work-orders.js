@@ -172,21 +172,25 @@ export default function WorkOrders() {
         const cncTimeValue = parseFloat(newWorkOrder.cnc_time)
         const { data: existingTool } = await supabase
           .from('tool_master')
-          .select('tool_code')
+          .select('tool_code, cnc_time')
           .eq('tool_code', newWorkOrder.tool_code)
           .single()
         
         if (existingTool) {
-          // Tool exists - update it with CNC time
-          const { error: toolMasterError } = await supabase
-            .from('tool_master')
-            .update({ cnc_time: cncTimeValue })
-            .eq('tool_code', newWorkOrder.tool_code)
-          
-          if (toolMasterError) {
-            console.error('Warning: Could not update tool master with CNC time:', toolMasterError)
+          // Tool exists - only update if it doesn't have CNC time yet
+          if (!existingTool.cnc_time || existingTool.cnc_time === 0) {
+            const { error: toolMasterError } = await supabase
+              .from('tool_master')
+              .update({ cnc_time: cncTimeValue })
+              .eq('tool_code', newWorkOrder.tool_code)
+            
+            if (toolMasterError) {
+              console.error('Warning: Could not update tool master with CNC time:', toolMasterError)
+            } else {
+              console.log('✅ Updated tool master with CNC time:', cncTimeValue)
+            }
           } else {
-            console.log('✅ Updated tool master with CNC time:', cncTimeValue)
+            console.log('ℹ️ Tool master already has CNC time, skipping update')
           }
         } else {
           // Tool doesn't exist - create it in tool master
