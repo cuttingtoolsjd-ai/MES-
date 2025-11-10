@@ -167,6 +167,19 @@ export default function WorkOrders() {
       // If RE work order, also save the CNC time
       if (isREWorkOrder && newWorkOrder.cnc_time) {
         workOrderData.cycle_time = parseFloat(newWorkOrder.cnc_time)
+        
+        // Also update tool master with CNC time for future reference
+        const cncTimeValue = parseFloat(newWorkOrder.cnc_time)
+        const { error: toolMasterError } = await supabase
+          .from('tool_master')
+          .update({ cnc_time: cncTimeValue })
+          .eq('tool_code', newWorkOrder.tool_code)
+        
+        if (toolMasterError) {
+          console.error('Warning: Could not update tool master with CNC time:', toolMasterError)
+        } else {
+          console.log('✅ Updated tool master with CNC time:', cncTimeValue)
+        }
       }
       
       const { data, error } = await supabase
