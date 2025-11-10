@@ -29,6 +29,11 @@ export default function App({ Component, pageProps }) {
         console.warn('Could not persist session:', e)
       }
     }
+
+    // Register service worker for PWA (non-blocking)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {})
+    }
   }, [])
 
   return (

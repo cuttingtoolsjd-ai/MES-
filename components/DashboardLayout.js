@@ -1,4 +1,5 @@
 import React from 'react'
+import ChatDock from './ChatDock'
 
 export default function DashboardLayout({
   user,
@@ -8,6 +9,7 @@ export default function DashboardLayout({
   rightContent,
   banner,
   children,
+  customerContextId,
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -63,6 +65,7 @@ export default function DashboardLayout({
           {children}
         </div>
       </div>
+      {user && <ChatDock user={user} customerContextId={customerContextId} />}
     </div>
   )
 }
