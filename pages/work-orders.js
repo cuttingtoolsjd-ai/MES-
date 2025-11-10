@@ -23,10 +23,7 @@ export default function WorkOrders() {
     quantity: '',
     price_per_unit: '',
     korv_per_unit: 0,
-    cnc_time: '',
-    cylindrical_time: '',
-    tc_time: '',
-    quality_time: ''
+    cnc_time: ''
   })
   const router = useRouter()
 
@@ -124,13 +121,9 @@ export default function WorkOrders() {
   // Calculate KORV based on cycle times (for RE work orders)
   const calculateKorvFromTimes = (workOrder = newWorkOrder) => {
     const cncTime = parseFloat(workOrder.cnc_time || 0)
-    const cylindricalTime = parseFloat(workOrder.cylindrical_time || 0)
-    const tcTime = parseFloat(workOrder.tc_time || 0)
-    const qualityTime = parseFloat(workOrder.quality_time || 0)
     
-    // KORV = (CNC Time + Cylindrical Time + T&C Time + Quality Time) / 5
-    const totalTime = cncTime + cylindricalTime + tcTime + qualityTime
-    return (totalTime / 5).toFixed(2)
+    // KORV = CNC Time / 5
+    return (cncTime / 5).toFixed(2)
   }
 
   // Handle cycle time changes for RE work orders
@@ -186,10 +179,7 @@ export default function WorkOrders() {
           quantity: '',
           price_per_unit: '',
           korv_per_unit: 0,
-          cnc_time: '',
-          cylindrical_time: '',
-          tc_time: '',
-          quality_time: ''
+          cnc_time: ''
         })
         setShowCreateForm(false)
         fetchWorkOrders()
@@ -344,13 +334,13 @@ export default function WorkOrders() {
                         <div className="col-span-full">
                           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-4">
                             <p className="text-sm text-blue-300">
-                              <strong>ℹ️ RE Work Order:</strong> Please enter cycle times for each operation. KORV will be calculated automatically.
+                              <strong>ℹ️ RE Work Order:</strong> Please enter CNC cycle time. KORV will be calculated automatically (CNC Time / 5).
                             </p>
                           </div>
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">CNC Time (minutes)</label>
+                          <label className="block text-sm font-medium text-white/80 mb-2">CNC Time (minutes) *</label>
                           <input
                             type="number"
                             step="0.01"
@@ -358,42 +348,7 @@ export default function WorkOrders() {
                             onChange={(e) => handleTimeChange('cnc_time', e.target.value)}
                             className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:border-indigo-500/50"
                             placeholder="0.00"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">Cylindrical Time (minutes)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newWorkOrder.cylindrical_time}
-                            onChange={(e) => handleTimeChange('cylindrical_time', e.target.value)}
-                            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:border-indigo-500/50"
-                            placeholder="0.00"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">T&C Time (minutes)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newWorkOrder.tc_time}
-                            onChange={(e) => handleTimeChange('tc_time', e.target.value)}
-                            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:border-indigo-500/50"
-                            placeholder="0.00"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">Quality Time (minutes)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newWorkOrder.quality_time}
-                            onChange={(e) => handleTimeChange('quality_time', e.target.value)}
-                            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:border-indigo-500/50"
-                            placeholder="0.00"
+                            required
                           />
                         </div>
                       </>
@@ -401,7 +356,7 @@ export default function WorkOrders() {
 
                     <div>
                       <label className="block text-sm font-medium text-white/80 mb-2">
-                        Korv per Unit {isREWorkOrder ? '(Auto-calculated from times)' : '(Auto-calculated)'}
+                        Korv per Unit {isREWorkOrder ? '(Auto: CNC Time / 5)' : '(Auto-calculated)'}
                       </label>
                       <div className="w-full bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 text-green-300 font-semibold">
                         {newWorkOrder.korv_per_unit || 0} KORV
