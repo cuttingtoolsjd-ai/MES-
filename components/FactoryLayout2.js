@@ -144,12 +144,35 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const t = toolMap.get(w.tool_code) || {};
       const qty = Number(w.quantity || 0);
       
-      // Check if work order has korv_per_unit (for RE work orders)
-      const hasWorkOrderKorv = w.korv_per_unit && w.korv_per_unit > 0;
+      // Check if this is an RE work order (has korv_per_unit and cycle_time)
+      const isREWorkOrder = w.korv_per_unit && w.korv_per_unit > 0 && w.cycle_time && w.cycle_time > 0;
       
-      // Get individual operation times (in minutes)
-      // For RE work orders, use cycle_time as CNC time if available
-      const cncTime = hasWorkOrderKorv && w.cycle_time ? Number(w.cycle_time) : Number(t.cnc_time || 0);
+      if (isREWorkOrder) {
+        // For RE work orders, all KORV comes from CNC only
+        const korvPerUnit = Number(w.korv_per_unit);
+        const totalKorv = korvPerUnit * qty;
+        const cncTime = Number(w.cycle_time);
+        
+        return {
+          ...w,
+          _korv: {
+            cnc: totalKorv,  // All KORV is in CNC for RE work orders
+            cyl: 0,
+            tc: 0,
+            quality: 0,
+            finalKorv: totalKorv
+          },
+          _times: {
+            cnc: cncTime,
+            cyl: 0,
+            tc: 0,
+            total: cncTime
+          }
+        };
+      }
+      
+      // Regular work orders - get times from tool master
+      const cncTime = Number(t.cnc_time || 0);
       const cylTime = Number(t.cylindrical_time || 0);
       const tcTime = Number(t.tc_time || t.tc_estimated || 0);
       
@@ -157,17 +180,11 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const totalTimePerUnit = cncTime + cylTime + tcTime;
       
       // Convert total time to Final KORV (1 KORV = 5 minutes)
-      // Use work order's korv_per_unit if available, otherwise calculate from times
-      const finalKorvPerUnit = hasWorkOrderKorv ? Number(w.korv_per_unit) : (totalTimePerUnit / 5);
+      const finalKorvPerUnit = totalTimePerUnit / 5;
       const finalKorvTotal = finalKorvPerUnit * qty;
       
-      // Also calculate per-operation KORV for tracking
-      // For RE work orders, put all KORV under CNC
-      let cncKorv = (cncTime / 5) * qty;
-      if (hasWorkOrderKorv && cncTime > 0 && cylTime === 0 && tcTime === 0) {
-        // This is an RE work order - use the work order's korv_per_unit for CNC
-        cncKorv = Number(w.korv_per_unit) * qty;
-      }
+      // Calculate per-operation KORV for tracking
+      const cncKorv = (cncTime / 5) * qty;
       const cylKorv = (cylTime / 5) * qty;
       const tcKorv = (tcTime / 5) * qty;
       const quality = Number(t.organisational_korv || 0) * qty;
@@ -179,7 +196,7 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
           cyl: cylKorv, 
           tc: tcKorv, 
           quality,
-          finalKorv: finalKorvTotal // This is the sum of all operations converted to KORV
+          finalKorv: finalKorvTotal
         },
         _times: {
           cnc: cncTime,
