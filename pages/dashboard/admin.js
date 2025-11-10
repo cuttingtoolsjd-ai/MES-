@@ -1179,6 +1179,7 @@ export default function AdminDashboard() {
       }}
       rightContent={<UserMenu user={user} onChangePinClick={() => setShowChangePinModal(true)} />}
       banner={null}
+      customerContextId={null}
     >
       {/* Force Password Change Modal */}
       {showPasswordChangeModal && (

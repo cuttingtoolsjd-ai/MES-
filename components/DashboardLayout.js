@@ -1,5 +1,5 @@
 import React from 'react'
-import EnhancedChatDock from './EnhancedChatDock'
+import PremiumChatBox from './PremiumChatBox'
 
 export default function DashboardLayout({
   user,
@@ -66,7 +66,7 @@ export default function DashboardLayout({
           {children}
         </div>
       </div>
-      {user && <EnhancedChatDock user={user} customerContextId={customerContextId} />}
+      {user && <PremiumChatBox user={user} customerContextId={customerContextId} />}
     </div>
   )
 }
