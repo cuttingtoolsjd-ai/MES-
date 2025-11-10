@@ -166,7 +166,7 @@ export default function WorkOrders() {
       
       // If RE work order, also save the CNC time
       if (isREWorkOrder && newWorkOrder.cnc_time) {
-        workOrderData.cycle_time = parseFloat(newWorkOrder.cnc_time)
+        workOrderData.cnc_time = parseFloat(newWorkOrder.cnc_time)
         
         // Check if tool exists in tool master, if not create it
         const cncTimeValue = parseFloat(newWorkOrder.cnc_time)

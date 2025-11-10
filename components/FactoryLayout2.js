@@ -144,15 +144,15 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const t = toolMap.get(w.tool_code) || {};
       const qty = Number(w.quantity || 0);
       
-      // Check if this is an RE work order (has korv_per_unit and cycle_time)
-      const isREWorkOrder = w.korv_per_unit && w.korv_per_unit > 0 && w.cycle_time && w.cycle_time > 0;
+      // Check if this is an RE work order (has korv_per_unit and cnc_time)
+      const isREWorkOrder = w.korv_per_unit && w.korv_per_unit > 0 && w.cnc_time && w.cnc_time > 0;
       
       // Debug logging for RE work orders
       if ((w.work_order_no || '').toUpperCase().startsWith('RE')) {
         console.log('🔍 RE Work Order detected:', {
           work_order_no: w.work_order_no,
           korv_per_unit: w.korv_per_unit,
-          cycle_time: w.cycle_time,
+          cnc_time: w.cnc_time,
           isREWorkOrder,
           quantity: qty
         });
@@ -162,7 +162,7 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
         // For RE work orders, all KORV comes from CNC only
         const korvPerUnit = Number(w.korv_per_unit);
         const totalKorv = korvPerUnit * qty;
-        const cncTime = Number(w.cycle_time);
+        const cncTime = Number(w.cnc_time);
         
         console.log('✅ RE Work Order enrichment:', {
           work_order_no: w.work_order_no,
