@@ -66,7 +66,6 @@ export default function DashboardLayout({
           {children}
         </div>
       </div>
-      {user && <PremiumChatBox user={user} customerContextId={customerContextId} />}
     </div>
   )
 }

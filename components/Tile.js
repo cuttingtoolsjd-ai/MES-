@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { User, Folder, Tool, CheckCircle, Box, Factory, ArrowRight } from 'lucide-react'
+import { User, Folder, ToolCase, CheckCircle, Box, Factory, ArrowRight } from 'lucide-react'
 
 // Map string icon names to Lucide icons
 const iconMap = {
   '👤': User,
   '🗂️': Folder,
-  '🧰': Tool,
+  '🧰': ToolCase,
   '✅': CheckCircle,
   '📦': Box,
   '🏭': Factory,

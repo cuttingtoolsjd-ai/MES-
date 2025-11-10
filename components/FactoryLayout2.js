@@ -1671,7 +1671,10 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
                           </td>
                           <td className="px-3 py-2">
                             <div className="text-gray-900 font-bold text-lg">
-                              {(wo._korv?.finalKorv || 0).toFixed(2)}
+                              {dept === 'cnc' && <span>{(wo._korv?.cnc || 0).toFixed(2)}</span>}
+                              {dept === 'cyl' && <span>{(wo._korv?.cyl || 0).toFixed(2)}</span>}
+                              {dept === 'tc' && <span>{(wo._korv?.tc || 0).toFixed(2)}</span>}
+                              {dept === 'quality' && <span>{(wo._korv?.quality || 0).toFixed(2)}</span>}
                             </div>
                           </td>
                           <td className="px-3 py-2">

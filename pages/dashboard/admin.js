@@ -29,6 +29,7 @@ import UserMenu from '../../components/UserMenu'
 import ChangePinModal from '../../components/ChangePinModal'
 import DashboardLayout from '../../components/DashboardLayout'
 import { parseCsv, importWorkOrders, importToolMaster, importStockItems } from '../../lib/csvImport'
+import PremiumChatBox from '../../components/PremiumChatBox'
 
 export default function AdminDashboard() {
   // ...existing code...
@@ -133,6 +134,14 @@ export default function AdminDashboard() {
       accent: 'cyan',
       kpi: '',
       tabLabel: 'Purchase Orders',
+    },
+    {
+      title: 'Team Chat',
+      description: 'Communicate with team members and customers',
+      icon: '💬',
+      accent: 'purple',
+      kpi: '',
+      tab: 9,
     },
   ].filter(Boolean) : []
 
@@ -1116,6 +1125,17 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <PurchaseOrderForm user={user} />
         <PurchaseOrdersTable />
+      </div>
+    )
+  })
+
+  // Add Team Chat tab
+  tabs.push({
+    label: 'Team Chat',
+    content: (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Team Communication</h2>
+        <PremiumChatBox user={user} customerContextId={null} />
       </div>
     )
   })

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
-export default function CustomerTable({ user }) {
+export default function CustomerTable({ user, isManagerView = false, onViewDetails }) {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -13,10 +13,17 @@ export default function CustomerTable({ user }) {
 
   async function fetchCustomers() {
     setLoading(true)
-    const { data, error } = await supabase
+    let query = supabase
       .from('customers')
       .select('*, users:assigned_sales_user_id(id, username)')
       .order('name', { ascending: true })
+    
+    // If manager view, filter by assigned sales person
+    if (isManagerView && user) {
+      query = query.eq('assigned_sales_user_id', user.id)
+    }
+    
+    const { data, error } = await query
     if (!error) setCustomers(data || [])
     setLoading(false)
   }
@@ -161,6 +168,14 @@ export default function CustomerTable({ user }) {
                   <td className="p-2">{c.last_order_date || '-'}</td>
                   <td className="p-2">
                     <div className="flex items-center gap-3">
+                      {onViewDetails && (
+                        <button
+                          onClick={() => onViewDetails(c)}
+                          className="text-blue-600 hover:underline"
+                        >
+                          View Details
+                        </button>
+                      )}
                       <button onClick={() => removeCustomer(c.id)} className="text-red-600 hover:underline">Delete</button>
                       {user?.role === 'admin' && daysSince(c.last_order_date) >= 30 && c.contact_phone && (
                         <>
