@@ -162,7 +162,12 @@ export default function FactoryLayout({ selectedDay, selectedShift }) {
       const finalKorvTotal = finalKorvPerUnit * qty;
       
       // Also calculate per-operation KORV for tracking
-      const cncKorv = (cncTime / 5) * qty;
+      // For RE work orders, put all KORV under CNC
+      let cncKorv = (cncTime / 5) * qty;
+      if (hasWorkOrderKorv && cncTime > 0 && cylTime === 0 && tcTime === 0) {
+        // This is an RE work order - use the work order's korv_per_unit for CNC
+        cncKorv = Number(w.korv_per_unit) * qty;
+      }
       const cylKorv = (cylTime / 5) * qty;
       const tcKorv = (tcTime / 5) * qty;
       const quality = Number(t.organisational_korv || 0) * qty;
